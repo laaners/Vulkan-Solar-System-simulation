@@ -1,5 +1,6 @@
 // This has been adapted from the Vulkan tutorial
-
+// Commento
+// Commento 2
 #include "Starter.hpp"
 
 // The uniform buffer objects data structures
@@ -31,7 +32,7 @@ struct GlobalUniformBlock {
 	alignas(16) glm::vec3 eyePos;
 };
 
-// The vertices data structures
+// The vertices data structures 8
 struct VertexMesh {
 	glm::vec3 pos;
 	glm::vec3 norm;
