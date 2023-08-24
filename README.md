@@ -1,4 +1,4 @@
-## Git workflow
+## GIT workflow
 ### 0) From main branch
 From main branch, if branch_myname does not exist:
 ```bash
