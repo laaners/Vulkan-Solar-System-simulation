@@ -1,7 +1,6 @@
 // This has been adapted from the Vulkan tutorial
 // Commento
 // Commento 2
-// Commento 3
 #include "Starter.hpp"
 
 // The uniform buffer objects data structures
@@ -40,10 +39,6 @@ struct VertexMesh {
 	glm::vec2 UV;
 };
 
-struct VertexOverlay {
-	glm::vec2 pos;
-	glm::vec2 UV;
-};
 
 /* A16 */
 /* Add the C++ datastructure for the required vertex format */
@@ -51,49 +46,44 @@ struct VertexOverlay {
 
 
 // MAIN ! 
-class A16 : public BaseProject {
+class SolarSystem : public BaseProject {
 	protected:
 
 	// Current aspect ratio (used by the callback that resized the window
 	float Ar;
 
-	// Descriptor Layouts ["classes" of what will be passed to the shaders]
-	DescriptorSetLayout DSLGubo, DSLMesh, DSLOverlay;
-	/* A16 */
-	/* Add the variable that will contain the required Descriptor Set Layout */
+	DescriptorSetLayout DSLGubo, DSLMesh;
 
 	// Vertex formats
 	VertexDescriptor VMesh;
-	VertexDescriptor VOverlay;
+
 	/* A16 */
 	/* Add the variable that will contain the required Vertex format definition */
 
 	// Pipelines [Shader couples]
 	Pipeline PMesh;
-	Pipeline POverlay;
-	/* A16 */
-	/* Add the variable that will contain the new pipeline */
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	// Please note that Model objects depends on the corresponding vertex structure
-	Model<VertexMesh> MBody, MHandle, MWheel;
-	/* A16 */
-	/* Add the variable that will contain the model for the room */
-	Model<VertexOverlay> MKey, MSplash;
-	DescriptorSet DSGubo, DSBody, DSHandle, DSWheel1, DSWheel2, DSWheel3, DSKey, DSSplash;
-	/* A16 */
+	Model<VertexMesh> MSun;
+
+	DescriptorSet DSGubo, DSSun;
+
 	/* Add the variable that will contain the Descriptor Set for the room */	
-	Texture TBody, THandle, TWheel, TKey, TSplash;
+	Texture TSun;
 	
 	// C++ storage for uniform variables
-	MeshUniformBlock uboBody, uboHandle, uboWheel1, uboWheel2, uboWheel3;
-	/* A16 */
+	MeshUniformBlock uboSun;
+
 	/* Add the variable that will contain the Uniform Block in slot 0, set 1 of the room */
 	GlobalUniformBlock gubo;
-	OverlayUniformBlock uboKey, uboSplash;
 
 	// Other application parameters
-	float CamH, CamRadius, CamPitch, CamYaw;
+	glm::vec3 camPos = glm::vec3(0.440019, 0.5, 3.45706);
+	float CamAlpha = 0.0f;
+	float CamBeta = 0.0f;
+	float CamRho = 0.0f;
+	
 	int gameState;
 	float HandleRot = 0.0;
 	float Wheel1Rot = 0.0;
@@ -101,21 +91,22 @@ class A16 : public BaseProject {
 	float Wheel3Rot = 0.0;
 
 
+
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
 		windowWidth = 800;
 		windowHeight = 600;
-		windowTitle = "A16";
+		windowTitle = "Solar System";
     	windowResizable = GLFW_TRUE;
 		initialBackgroundColor = {0.0f, 0.005f, 0.01f, 1.0f};
 		
 		// Descriptor pool sizes
 		/* A16 */
 		/* Update the requirements for the size of the pool */
-		uniformBlocksInPool = 8;
-		texturesInPool = 7;
-		setsInPool = 8;
+		uniformBlocksInPool = 2;
+		texturesInPool = 1;
+		setsInPool = 2;
 		
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
@@ -140,10 +131,6 @@ class A16 : public BaseProject {
 					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
 				});
 				
-		DSLOverlay.init(this, {
-					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
-					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-				});
 		/* A16 */
 		/* Init the new Data Set Layout */
 				
@@ -188,14 +175,6 @@ class A16 : public BaseProject {
 				         sizeof(glm::vec2), UV}
 				});
 
-		VOverlay.init(this, {
-				  {0, sizeof(VertexOverlay), VK_VERTEX_INPUT_RATE_VERTEX}
-				}, {
-				  {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(VertexOverlay, pos),
-				         sizeof(glm::vec2), OTHER},
-				  {0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(VertexOverlay, UV),
-				         sizeof(glm::vec2), UV}
-				});
 		/* A16 */
 		/* Define the new Vertex Format */
 
@@ -205,10 +184,7 @@ class A16 : public BaseProject {
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
 		PMesh.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/MeshFrag.spv", {&DSLGubo, &DSLMesh});
-		POverlay.init(this, &VOverlay, "shaders/OverlayVert.spv", "shaders/OverlayFrag.spv", {&DSLOverlay});
-		POverlay.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
- 								    VK_CULL_MODE_NONE, false);
-		/* A16 */
+
 		/* Create the new pipeline, using shaders "VColorVert.spv" and "VColorFrag.spv" */
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
@@ -217,52 +193,23 @@ class A16 : public BaseProject {
 		// The second parameter is the pointer to the vertex definition for this model
 		// The third parameter is the file name
 		// The last is a constant specifying the file type: currently only OBJ or GLTF
-		MBody.init(this,   &VMesh, "Models/SlotBody.obj", OBJ);
-		MHandle.init(this, &VMesh, "Models/SlotHandle.obj", OBJ);
-		MWheel.init(this,  &VMesh, "Models/SlotWheel.obj", OBJ);
-		/* A16 */
-		/* load the mesh for the room, contained in OBJ file "Room.obj" */
-
-
 		
 		// Creates a mesh with direct enumeration of vertices and indices
-		MKey.vertices = {{{-0.8f, 0.6f}, {0.0f,0.0f}}, {{-0.8f, 0.95f}, {0.0f,1.0f}},
-						 {{ 0.8f, 0.6f}, {1.0f,0.0f}}, {{ 0.8f, 0.95f}, {1.0f,1.0f}}};
-		MKey.indices = {0, 1, 2,    1, 2, 3};
-		MKey.initMesh(this, &VOverlay);
-		
-		// Creates a mesh with direct enumeration of vertices and indices
-		MSplash.vertices = {{{-1.0f, -0.58559f}, {0.0102f, 0.0f}}, {{-1.0f, 0.58559f}, {0.0102f,0.85512f}},
-						 {{ 1.0f,-0.58559f}, {1.0f,0.0f}}, {{ 1.0f, 0.58559f}, {1.0f,0.85512f}}};
-		MSplash.indices = {0, 1, 2,    1, 2, 3};
-		MSplash.initMesh(this, &VOverlay);
+		createSphereMesh(1, MSun.vertices, MSun.indices);
+		MSun.initMesh(this, &VMesh);
 		
 		// Create the textures
 		// The second parameter is the file name
-		TBody.init(this,   "textures/SlotBody.png");
-		THandle.init(this, "textures/SlotHandle.png");
-		TWheel.init(this,  "textures/SlotWheel.png");
-		TKey.init(this,    "textures/PressSpace.png");
-		TSplash.init(this, "textures/SplashScreen.png");
-		
-		// Init local variables
-		CamH = 1.0f;
-		CamRadius = 3.0f;
-		CamPitch = glm::radians(15.f);
-		CamYaw = glm::radians(30.f);
-		gameState = 0;
+		TSun.init(this, "textures/Sun.png");
 	}
 	
 	// Here you create your pipelines and Descriptor Sets!
 	void pipelinesAndDescriptorSetsInit() {
 		// This creates a new pipeline (with the current surface), using its shaders
 		PMesh.create();
-		POverlay.create();
-		/* A16 */
-		/* Create the new pipeline */
 		
 		// Here you define the data set
-		DSBody.init(this, &DSLMesh, {
+		DSSun.init(this, &DSLMesh, {
 		// the second parameter, is a pointer to the Uniform Set Layout of this set
 		// the last parameter is an array, with one element per binding of the set.
 		// first  elmenet : the binding number
@@ -270,35 +217,9 @@ class A16 : public BaseProject {
 		// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
 		// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
 					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TBody}
+					{1, TEXTURE, 0, &TSun}
 				});
-		DSHandle.init(this, &DSLMesh, {
-					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-					{1, TEXTURE, 0, &THandle}
-				});
-		DSWheel1.init(this, &DSLMesh, {
-					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TWheel}
-				});
-		DSWheel2.init(this, &DSLMesh, {
-					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TWheel}
-				});
-		DSWheel3.init(this, &DSLMesh, {
-					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TWheel}
-				});
-		/* A16 */
-		/* Define the data set for the room */
 
-		DSKey.init(this, &DSLOverlay, {
-					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TKey}
-				});
-		DSSplash.init(this, &DSLOverlay, {
-					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TSplash}
-				});
 		DSGubo.init(this, &DSLGubo, {
 					{0, UNIFORM, sizeof(GlobalUniformBlock), nullptr}
 				});
@@ -309,21 +230,9 @@ class A16 : public BaseProject {
 	void pipelinesAndDescriptorSetsCleanup() {
 		// Cleanup pipelines
 		PMesh.cleanup();
-		POverlay.cleanup();
-		/* A16 */
-		/* cleanup the new pipeline */
 
 		// Cleanup datasets
-		DSBody.cleanup();
-		DSHandle.cleanup();
-		DSWheel1.cleanup();
-		DSWheel2.cleanup();
-		DSWheel3.cleanup();
-		/* A16 */
-		/* cleanup the dataset for the room */
-
-		DSKey.cleanup();
-		DSSplash.cleanup();
+		DSSun.cleanup();
 		DSGubo.cleanup();
 	}
 
@@ -333,34 +242,19 @@ class A16 : public BaseProject {
 	// methods: .cleanup() recreates them, while .destroy() delete them completely
 	void localCleanup() {
 		// Cleanup textures
-		TBody.cleanup();
-		THandle.cleanup();
-		TWheel.cleanup();
-		TKey.cleanup();
-		TSplash.cleanup();
-		
+		TSun.cleanup();
+
 		// Cleanup models
-		MBody.cleanup();
-		MHandle.cleanup();
-		MWheel.cleanup();
-		MKey.cleanup();
-		MSplash.cleanup();
-		/* A16 */
-		/* Cleanup the mesh for the room */
+		MSun.cleanup();
 		
 		// Cleanup descriptor set layouts
 		DSLMesh.cleanup();
-		DSLOverlay.cleanup();
-		/* A16 */
-		/* Cleanup the new Descriptor Set Layout */
 
+		/* Cleanup the new Descriptor Set Layout */
 		DSLGubo.cleanup();
 		
-		// Destroies the pipelines
+		// Destroys the pipelines
 		PMesh.destroy();		
-		POverlay.destroy();
-		/* A16 */
-		/* Destroy the new pipeline */
 	}
 	
 	// Here it is the creation of the command buffer:
@@ -376,12 +270,12 @@ class A16 : public BaseProject {
 		// For a pipeline object, this command binds the corresponing pipeline to the command buffer passed in its parameter
 
 		// binds the model
-		MBody.bind(commandBuffer);
+		MSun.bind(commandBuffer);
 		// For a Model object, this command binds the corresponing index and vertex buffer
 		// to the command buffer passed in its parameter
 		
 		// binds the data set
-		DSBody.bind(commandBuffer, PMesh, 1, currentImage);
+		DSSun.bind(commandBuffer, PMesh, 1, currentImage);
 		// For a Dataset object, this command binds the corresponing dataset
 		// to the command buffer and pipeline passed in its first and second parameters.
 		// The third parameter is the number of the set being bound
@@ -391,38 +285,9 @@ class A16 : public BaseProject {
 					
 		// record the drawing command in the command buffer
 		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MBody.indices.size()), 1, 0, 0, 0);
+				static_cast<uint32_t>(MSun.indices.size()), 1, 0, 0, 0);
 		// the second parameter is the number of indexes to be drawn. For a Model object,
 		// this can be retrieved with the .indices.size() method.
-
-		MHandle.bind(commandBuffer);
-		DSHandle.bind(commandBuffer, PMesh, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MHandle.indices.size()), 1, 0, 0, 0);
-
-		MWheel.bind(commandBuffer);
-		DSWheel1.bind(commandBuffer, PMesh, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MWheel.indices.size()), 1, 0, 0, 0);
-		DSWheel2.bind(commandBuffer, PMesh, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MWheel.indices.size()), 1, 0, 0, 0);
-		DSWheel3.bind(commandBuffer, PMesh, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MWheel.indices.size()), 1, 0, 0, 0);
-		/* A16 */
-		/* Insert the commands to draw the room */
-
-		POverlay.bind(commandBuffer);
-		MKey.bind(commandBuffer);
-		DSKey.bind(commandBuffer, POverlay, 0, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MKey.indices.size()), 1, 0, 0, 0);
-
-		MSplash.bind(commandBuffer);
-		DSSplash.bind(commandBuffer, POverlay, 0, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-				static_cast<uint32_t>(MSplash.indices.size()), 1, 0, 0, 0);
 	}
 
 	// Here is where you update the uniforms.
@@ -535,19 +400,37 @@ class A16 : public BaseProject {
 		const float rotSpeed = glm::radians(90.0f);
 		const float movSpeed = 1.0f;
 		
-		CamH += m.z * movSpeed * deltaT;
-		CamRadius -= m.x * movSpeed * deltaT;
-		CamPitch -= r.x * rotSpeed * deltaT;
-		CamYaw += r.y * rotSpeed * deltaT;
-		
+		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
+		CamBeta  = CamBeta  - rotSpeed * deltaT * r.x;
+		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
+					(CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
+		CamRho   = CamRho   - rotSpeed * deltaT * r.z;
+		CamRho   =  CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
+					(CamRho > glm::radians( 180.0f) ? glm::radians( 180.0f) : CamRho);
+
+		glm::mat3 CamDir = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) *
+							glm::rotate(glm::mat4(1.0f), CamBeta,  glm::vec3(1,0,0)) *
+							glm::rotate(glm::mat4(1.0f), CamRho,   glm::vec3(0,0,1));
+
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+		camPos = camPos + movSpeed * m.x * ux * deltaT;
+		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
+		camPos = camPos + movSpeed * m.z * uz * deltaT;
+
 		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
 		Prj[1][1] *= -1;
-		glm::vec3 camTarget = glm::vec3(0,CamH,0);
-		glm::vec3 camPos    = camTarget +
-							  CamRadius * glm::vec3(cos(CamPitch) * sin(CamYaw),
-													sin(CamPitch),
-													cos(CamPitch) * cos(CamYaw));
-		glm::mat4 View = glm::lookAt(camPos, camTarget, glm::vec3(0,1,0));
+		
+		glm::mat4 View = glm::mat4(1);
+
+		glm::vec3 oppPos = camPos;
+		oppPos[0] *= -1;
+		oppPos[1] *= -1;
+		oppPos[2] *= -1;
+		View = glm::rotate(glm::mat4(1.0), -CamRho,   glm::vec3(0,0,1))*
+			   glm::rotate(glm::mat4(1.0), -CamBeta,  glm::vec3(1,0,0))*
+			   glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0))*
+			   glm::translate(glm::mat4(1.0), oppPos);
 
 		gubo.DlightDir = glm::normalize(glm::vec3(1, 2, 3));
 		gubo.DlightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -561,62 +444,33 @@ class A16 : public BaseProject {
 		// the third parameter is its size
 		// the fourth parameter is the location inside the descriptor set of this uniform block
 
-		glm::mat4 World = glm::mat4(1);		
-		uboBody.amb = 1.0f; uboBody.gamma = 180.0f; uboBody.sColor = glm::vec3(1.0f);
-		uboBody.mvpMat = Prj * View * World;
-		uboBody.mMat = World;
-		uboBody.nMat = glm::inverse(glm::transpose(World));
-		DSBody.map(currentImage, &uboBody, sizeof(uboBody), 0);
-	
-		World = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.3f,0.5f,-0.15f)),
-							HandleRot, glm::vec3(1,0,0));
-		uboHandle.amb = 1.0f; uboHandle.gamma = 180.0f; uboHandle.sColor = glm::vec3(1.0f);
-		uboHandle.mvpMat = Prj * View * World;
-		uboHandle.mMat = World;
-		uboHandle.nMat = glm::inverse(glm::transpose(World));
-		DSHandle.map(currentImage, &uboHandle, sizeof(uboHandle), 0);
-	
-		World = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(-0.15f,0.93f,-0.15f)),
-							Wheel1Rot, glm::vec3(1,0,0));
-		uboWheel1.amb = 1.0f; uboWheel1.gamma = 180.0f; uboWheel1.sColor = glm::vec3(1.0f);
-		uboWheel1.mvpMat = Prj * View * World;
-		uboWheel1.mMat = World;
-		uboWheel1.nMat = glm::inverse(glm::transpose(World));
-		DSWheel1.map(currentImage, &uboWheel1, sizeof(uboWheel1), 0);
-	
-		World = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f,0.93f,-0.15f)),
-							Wheel2Rot, glm::vec3(1,0,0));
-		uboWheel2.amb = 1.0f; uboWheel2.gamma = 180.0f; uboWheel2.sColor = glm::vec3(1.0f);
-		uboWheel2.mvpMat = Prj * View * World;
-		uboWheel2.mMat = World;
-		uboWheel2.nMat = glm::inverse(glm::transpose(World));
-		DSWheel2.map(currentImage, &uboWheel2, sizeof(uboWheel2), 0);
-	
-		World = glm::rotate(glm::translate(glm::mat4(1.0f), glm::vec3(0.15f,0.93f,-0.15f)),
-							Wheel3Rot, glm::vec3(1,0,0));
-		uboWheel3.amb = 1.0f; uboWheel3.gamma = 180.0f; uboWheel3.sColor = glm::vec3(1.0f);
-		uboWheel3.mvpMat = Prj * View * World;
-		uboWheel3.mMat = World;
-		uboWheel3.nMat = glm::inverse(glm::transpose(World));
-		DSWheel3.map(currentImage, &uboWheel3, sizeof(uboWheel3), 0);
-		/* A16 */
-		/* fill the uniform block for the room. Identical to the one of the body of the slot machine */
+		glm::mat4 World = glm::mat4(1);
+		World = glm::translate(World, glm::vec3(2,0,-3));
+		uboSun.amb = 1.0f; uboSun.gamma = 180.0f; uboSun.sColor = glm::vec3(1.0f);
+		uboSun.mvpMat = Prj * View * World;
+		uboSun.mMat = World;
 
-		/* map the uniform data block to the GPU */
+		uboSun.nMat = glm::inverse(glm::transpose(World));
+		DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
 
-
+		/*
 		uboKey.visible = (gameState == 1) ? 1.0f : 0.0f;
 		DSKey.map(currentImage, &uboKey, sizeof(uboKey), 0);
 
 		uboSplash.visible = (gameState == 0) ? 1.0f : 0.0f;
 		DSSplash.map(currentImage, &uboSplash, sizeof(uboSplash), 0);
+		*/	
 	}	
+
+	void createSphereMesh(float radius, std::vector<VertexMesh> &vDef, std::vector<uint32_t> &vIdx);
 };
+
+#include "meshCreate.hpp"
 
 
 // This is the main: probably you do not need to touch this!
 int main() {
-    A16 app;
+    SolarSystem app;
 
     try {
         app.run();

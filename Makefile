@@ -1,4 +1,4 @@
-FILE=A16
+FILE=main
 CFLAGS = -std=c++17 -O0 -Iheaders
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
 
