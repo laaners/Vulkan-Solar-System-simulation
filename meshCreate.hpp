@@ -1,9 +1,7 @@
-
-using namespace std;
-using namespace glm;
+#include "Starter.hpp"
 
 #define M_PI 3.141595f
-void SolarSystem::createSphereMesh(float radius, vector<VertexMesh>& vDef, vector<uint32_t>& vIdx) {
+void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
     const int numLatitudes = 50;   // Number of latitude divisions
     const int numLongitudes = 50;  // Number of longitude divisions
 
