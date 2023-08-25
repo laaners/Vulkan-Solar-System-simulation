@@ -1,7 +1,6 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "Starter.hpp"
-#define M_PI 3.141595f
 
 // The uniform buffer objects data structures
 // Remember to use the correct alignas(...) value
@@ -286,13 +285,11 @@ protected:
 
 		// binds the model
 		MSun.bind(commandBuffer);
-		MMercury.bind(commandBuffer);
 		// For a Model object, this command binds the corresponing index and vertex buffer
 		// to the command buffer passed in its parameter
 
 		// binds the data set
 		DSSun.bind(commandBuffer, PMesh, 1, currentImage);
-		DSMercury.bind(commandBuffer, PMesh, 1, currentImage);
 		// For a Dataset object, this command binds the corresponing dataset
 		// to the command buffer and pipeline passed in its first and second parameters.
 		// The third parameter is the number of the set being bound
@@ -305,6 +302,9 @@ protected:
 			static_cast<uint32_t>(MSun.indices.size()), 1, 0, 0, 0);
 		// the second parameter is the number of indexes to be drawn. For a Model object,
 		// this can be retrieved with the .indices.size() method.
+
+		MMercury.bind(commandBuffer);
+		DSMercury.bind(commandBuffer, PMesh, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MMercury.indices.size()), 1, 0, 0, 0);
 	}
@@ -332,34 +332,32 @@ protected:
 		// If fills the last boolean variable with true if fire has been pressed:
 		//          SPACE on the keyboard, A or B button on the Gamepad, Right mouse button
 
-
-
+		// static float debounce = false;
+		// static int curDebounce = 0;
 
 		// Parameters
 		// Camera FOV-y, Near Plane and Far Plane
-		const float FOVy = glm::radians(90.0f);
+		const float FOVy = glm::radians(45.0f);
 		const float nearPlane = 0.1f;
-		const float farPlane = 100.0f;
+		const float farPlane = 50.0f;
 		const float rotSpeed = glm::radians(90.0f);
-		const float movSpeed = 1.0f;
+		const float movSpeed = 5.0f;
+
 
 		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
 		CamBeta = CamBeta - rotSpeed * deltaT * r.x;
-		CamBeta = CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
-			(CamBeta > glm::radians(90.0f) ? glm::radians(90.0f) : CamBeta);
-		CamRho = CamRho - rotSpeed * deltaT * r.z;
-		CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
-			(CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
+		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
+				   (CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
+		// CamRho = CamRho - rotSpeed * deltaT * r.z;
+		// CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
+		// 		   (CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
 
-		glm::mat3 CamDir = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) *
-			glm::rotate(glm::mat4(1.0f), CamBeta, glm::vec3(1, 0, 0)) *
-			glm::rotate(glm::mat4(1.0f), CamRho, glm::vec3(0, 0, 1));
-
-		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 1);
-		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) * glm::vec4(0, 0, -1, 1);
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
 		camPos = camPos + movSpeed * m.x * ux * deltaT;
-		camPos = camPos + movSpeed * m.y * glm::vec3(0, 1, 0) * deltaT;
+		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
 		camPos = camPos + movSpeed * m.z * uz * deltaT;
+		
 
 		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
 		Prj[1][1] *= -1;
@@ -370,10 +368,11 @@ protected:
 		oppPos[0] *= -1;
 		oppPos[1] *= -1;
 		oppPos[2] *= -1;
-		View = glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0, 0, 1)) *
-			glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1, 0, 0)) *
-			glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0, 1, 0)) *
-			glm::translate(glm::mat4(1.0), oppPos);
+		View =  glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
+				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
+				glm::translate(glm::mat4(1.0), -camPos);
+
 
 		gubo.DlightDir = glm::normalize(glm::vec3(1, 2, 3));
 		gubo.DlightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -398,7 +397,8 @@ protected:
 		DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
 
 
-		World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for Mercury
+		World = glm::mat4(1);
+		World = glm::translate(World, glm::vec3(4, 0, -3)); // Position for Mercury
 		uboMercury.amb = 1.0f;
 		uboMercury.gamma = 180.0f;
 		uboMercury.sColor = glm::vec3(1.0f);
@@ -464,7 +464,6 @@ protected:
 		}
 	}
 };
-
 
 
 // This is the main: probably you do not need to touch this!

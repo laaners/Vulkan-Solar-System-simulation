@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.uxf": "bat",
+        "cmath": "cpp"
+    }
+}
