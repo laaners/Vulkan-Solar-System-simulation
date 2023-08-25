@@ -366,3 +366,5 @@ CGProject.*
 compile_shaders.sh
 Makefile
 .gitignore
+main
+.vscode/settings.json

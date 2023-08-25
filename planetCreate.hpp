@@ -1,6 +1,3 @@
-#include "Starter.hpp"
-
-#define M_PI 3.141595f
 void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
     const int numLatitudes = 50;   // Number of latitude divisions
     const int numLongitudes = 50;  // Number of longitude divisions
@@ -12,7 +9,7 @@ void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, 
             float phi = static_cast<float>(lon) * 2.0f * M_PI / static_cast<float>(numLongitudes); // Longitude angle
 
             // Convert spherical coordinates to Cartesian coordinates
-            float x = std::cos(phi) * std::sin(theta);
+            float x = -std::cos(phi) * std::sin(theta);
             float y = std::cos(theta);
             float z = std::sin(phi) * std::sin(theta);
 
