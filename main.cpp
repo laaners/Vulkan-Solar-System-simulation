@@ -41,44 +41,49 @@ struct GlobalUniformBlockPoint {
 	alignas(16) glm::vec3 eyePos;
 };
 
-// The vertices data structures 8
 struct VertexMesh {
 	glm::vec3 pos;
 	glm::vec3 norm;
 	glm::vec2 UV;
 };
 
+struct VertexSkydome {
+	glm::vec3 pos;
+	glm::vec3 norm;
+	glm::vec2 UV;
+};
 
 class SolarSystem : public BaseProject {
 protected:
 	// Current aspect ratio (used by the callback that resized the window
 	float Ar;
 
-	DescriptorSetLayout DSLGubo, DSLPlanet, DSLSun;
+	DescriptorSetLayout DSLGubo, DSLPlanet, DSLSun, DSLSkydome;
 
 	// Vertex formats
 	VertexDescriptor VMesh;
+	VertexDescriptor VSkydome;
 
 	// Pipelines [Shader couples]
-	Pipeline PPlanet;
-	Pipeline PSun;
+	Pipeline PPlanet, PSun, PSkydome;
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	// Please note that Model objects depends on the corresponding vertex structure
 	Model<VertexMesh> MSun,
 		MMercury, MVenus, MEarth, MMars, MJupiter,
 		MSaturn, MSaturnRing, MUranus, MNeptune;
+	Model<VertexSkydome> MSkydome;
 
-	DescriptorSet DSGubo, DSSun,
+	DescriptorSet DSGubo, DSSun, DSSkydome,
 		DSMercury, DSVenus, DSEarth, DSMars, DSJupiter,
 		DSSaturn, DSSaturnRing, DSUranus, DSNeptune;
 
-	Texture TSun,
+	Texture TSun, TSkydome,
 		TMercury, TVenus, TEarth, TMars, TJupiter,
 		TSaturn, TSaturnRing, TUranus, TNeptune;
 
 	// C++ storage for uniform variables
-	MeshUniformBlock uboSun,
+	MeshUniformBlock uboSun, uboSkydome,
 		uboMercury, uboVenus, uboEarth, uboMars, uboJupiter,
 		uboSaturn, uboSaturnRing, uboUranus, uboNeptune;
 	GlobalUniformBlockDirect dgubo;
@@ -86,6 +91,7 @@ protected:
 
 	// Other application parameters
 	glm::vec3 camPos = glm::vec3(0.440019, 0.5, 3.45706);
+	glm::mat3 camDir = glm::mat3(1.0f);
 	float CamAlpha = 0.0f;
 	float CamBeta = 0.0f;
 	float CamRho = 0.0f;
@@ -108,9 +114,9 @@ protected:
 		// Descriptor pool sizes
 
 		/* Update the requirements for the size of the pool */
-		uniformBlocksInPool = 21;
-		texturesInPool = 11;
-		setsInPool = 21;
+		uniformBlocksInPool = 23;
+		texturesInPool = 12;
+		setsInPool = 23;
 
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
@@ -142,6 +148,13 @@ protected:
 			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
 		});
+
+		DSLSkydome.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
+			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT}
+		});
+
 
 		DSLGubo.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
@@ -184,6 +197,17 @@ protected:
 					   sizeof(glm::vec2), UV}
 			});
 
+		VSkydome.init(this, {
+			{0, sizeof(VertexSkydome), VK_VERTEX_INPUT_RATE_VERTEX}
+			}, {
+				{0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexSkydome, pos),
+					   sizeof(glm::vec3), POSITION},
+				{0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(VertexSkydome, norm),
+					   sizeof(glm::vec3), NORMAL},
+				{0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(VertexMesh, UV),
+					   sizeof(glm::vec2), UV}
+			});
+
 
 		// Pipelines [Shader couples]
 		// The second parameter is the pointer to the vertex definition
@@ -192,6 +216,7 @@ protected:
 		// be used in this pipeline. The first element will be set 0, and so on..
 		PPlanet.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/PlanetFrag.spv", { &DSLGubo, &DSLPlanet });
 		PSun.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SunFrag.spv", { &DSLGubo, &DSLSun });
+		PSkydome.init(this, &VSkydome, "shaders/SkydomeVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 
@@ -200,7 +225,22 @@ protected:
 		// The third parameter is the file name
 		// The last is a constant specifying the file type: currently only OBJ or GLTF
 
+		/*
+		MSkydome.init(this, &VSkydome, "models/SkydomeCube.obj", OBJ);
+		const char *T2fn[] = {
+				"textures/sky/bkg1_right.png", "textures/sky/bkg1_left.png",
+				"textures/sky/bkg1_top.png",   "textures/sky/bkg1_bot.png",
+				"textures/sky/bkg1_front.png", "textures/sky/bkg1_back.png"};
+		TSkydome.initCubic(this, T2fn);
+		*/
+
+		createSkydome(30.0f, MSkydome.vertices, MSkydome.indices);
+		MSkydome.initMesh(this, &VSkydome);
+		TSkydome.init(this, "textures/Skydome.png");
+
+
 		// Creates a mesh with direct enumeration of vertices and indices
+
 		createPlanetMesh(3.0f, MSun.vertices, MSun.indices);
 		MSun.initMesh(this, &VMesh);
 
@@ -230,6 +270,7 @@ protected:
 
 		createPlanetMesh(2.0f, MNeptune.vertices, MNeptune.indices);
 		MNeptune.initMesh(this, &VMesh);
+
 		// Create the textures
 		// The second parameter is the file name
 		TSun.init(this, "textures/Sun.png");
@@ -242,6 +283,7 @@ protected:
 		TSaturnRing.init(this, "textures/SaturnRing.png");
 		TUranus.init(this, "textures/Uranus.png");
 		TNeptune.init(this, "textures/Neptune.png");
+
 	}
 
 	// Here you create your pipelines and Descriptor Sets!
@@ -249,8 +291,14 @@ protected:
 		// This creates a new pipeline (with the current surface), using its shaders
 		PPlanet.create();
 		PSun.create();
+		PSkydome.create();
 
 		// Here you define the data set
+		DSSkydome.init(this, &DSLSkydome, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TSkydome}
+		});
+
 		DSSun.init(this, &DSLSun, {
 			// the second parameter, is a pointer to the Uniform Set Layout of this set
 			// the last parameter is an array, with one element per binding of the set.
@@ -329,6 +377,7 @@ protected:
 		// Cleanup pipelines
 		PPlanet.cleanup();
 		PSun.cleanup();
+		PSkydome.cleanup();
 
 		// Cleanup datasets
 		DSSun.cleanup();
@@ -342,6 +391,7 @@ protected:
 		DSUranus.cleanup();
 		DSNeptune.cleanup();
 		DSGubo.cleanup();
+		DSSkydome.cleanup();
 	}
 
 	// Here you destroy all the Models, Texture and Desc. Set Layouts you created!
@@ -360,6 +410,7 @@ protected:
 		TSaturnRing.cleanup();
 		TUranus.cleanup();
 		TNeptune.cleanup();
+		TSkydome.cleanup();
 
 		// Cleanup models
 		MSun.cleanup();
@@ -372,15 +423,18 @@ protected:
 		MSaturnRing.cleanup();
 		MUranus.cleanup();
 		MNeptune.cleanup();
+		MSkydome.cleanup();
 
 		// Cleanup descriptor set layouts
 		DSLPlanet.cleanup();
 		DSLGubo.cleanup();
 		DSLSun.cleanup();
+		DSLSkydome.cleanup();
 
 		// Destroys the pipelines
 		PPlanet.destroy();
 		PSun.destroy();
+		PSkydome.destroy();
 	}
 
 	// Here it is the creation of the command buffer:
@@ -446,6 +500,11 @@ protected:
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MSun.indices.size()), 1, 0, 0, 0);
 
+		PSkydome.bind(commandBuffer);
+		MSkydome.bind(commandBuffer);
+		DSSkydome.bind(commandBuffer, PSkydome, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MSkydome.indices.size()), 1, 0, 0, 0);
 	}
 
 	// Here is where you update the uniforms.
@@ -473,43 +532,9 @@ protected:
 
 		// static float debounce = false;
 		// static int curDebounce = 0;
-
-		// Parameters
-		// Camera FOV-y, Near Plane and Far Plane
-		const float FOVy = glm::radians(45.0f);
-		const float nearPlane = 0.1f;
-		const float farPlane = 100.0f;
-		const float rotSpeed = glm::radians(90.0f);
-		const float movSpeed = 20.0f;
-
-		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
-		CamBeta = CamBeta - rotSpeed * deltaT * r.x;
-		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
-				   (CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
-		// CamRho = CamRho - rotSpeed * deltaT * r.z;
-		// CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
-		// 		   (CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
-
-		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
-		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
-		camPos = camPos + movSpeed * m.x * ux * deltaT;
-		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
-		camPos = camPos + movSpeed * m.z * uz * deltaT;
-		
-
-		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
-		Prj[1][1] *= -1;
-
-		glm::mat4 View = glm::mat4(1);
-
-		glm::vec3 oppPos = camPos;
-		oppPos[0] *= -1;
-		oppPos[1] *= -1;
-		oppPos[2] *= -1;
-		View =  glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
-				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
-				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
-				glm::translate(glm::mat4(1.0), -camPos);
+		std::vector<glm::mat4> matrices = updateCamPos(deltaT, m, r);
+		glm::mat4 View = matrices[0];
+		glm::mat4 Prj = matrices[1];
 
 		// Point light
 		pgubo.lightPos = glm::vec3(0, 0, -3);
@@ -529,7 +554,18 @@ protected:
 		// the third parameter is its size
 		// the fourth parameter is the location inside the descriptor set of this uniform block
 
-		glm::mat4 World = glm::mat4(1);
+		
+		// update Skydome uniforms
+		glm::mat4 World;
+		
+		World = glm::mat4(1);
+		uboSkydome.amb = 1.0f; uboSkydome.gamma = 180.0f; uboSkydome.sColor = glm::vec3(0.3f);
+		uboSkydome.mMat = World;
+		uboSkydome.nMat = glm::inverse(glm::transpose(World));
+		uboSkydome.mvpMat = Prj * View * World;
+		DSSkydome.map(currentImage, &uboSkydome, sizeof(uboSkydome), 0);
+
+		World = glm::mat4(1);
 		World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for the Sun
 		uboSun.amb = 1.0f;
 		uboSun.gamma = 180.0f;
@@ -602,6 +638,9 @@ protected:
 		DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = rotate(World, glm::radians(28.0f), glm::vec3(1,0,0));
+		float WheelSpeed = glm::radians(180.0f);
+		Wheel3Rot += WheelSpeed * deltaT;
+		// World = rotate(World, Wheel3Rot, glm::vec3(1,0,0));
 		uboSaturnRing.amb = 1.0f;
 		uboSaturnRing.gamma = 180.0f;
 		uboSaturnRing.sColor = glm::vec3(1.0f);
@@ -644,6 +683,48 @@ protected:
 	void createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx);
 
 	void createSaturnRing(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx);
+
+	void createSkydome(float radius, std::vector<VertexSkydome>& vDef, std::vector<uint32_t>& vIdx);
+
+	std::vector<glm::mat4> updateCamPos(float deltaT, glm::vec3 m, glm::vec3 r) {
+		// Parameters
+		// Camera FOV-y, Near Plane and Far Plane
+		const float FOVy = glm::radians(45.0f);
+		const float nearPlane = 0.1f;
+		const float farPlane = 100.0f;
+		const float rotSpeed = glm::radians(90.0f);
+		const float movSpeed = 20.0f;
+
+		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
+		CamBeta = CamBeta - rotSpeed * deltaT * r.x;
+		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
+				   (CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
+		// CamRho = CamRho - rotSpeed * deltaT * r.z;
+		// CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
+		// 		   (CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
+
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+		camPos = camPos + movSpeed * m.x * ux * deltaT;
+		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
+		camPos = camPos + movSpeed * m.z * uz * deltaT;
+		
+
+		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
+		Prj[1][1] *= -1;
+
+		glm::mat4 View = glm::mat4(1);
+		glm::vec3 oppPos = camPos;
+		oppPos[0] *= -1;
+		oppPos[1] *= -1;
+		oppPos[2] *= -1;
+		View = glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
+				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
+				glm::translate(glm::mat4(1.0), -camPos);
+		
+		return { View, Prj};
+	}
 };
 
 #include "planetCreate.hpp"
