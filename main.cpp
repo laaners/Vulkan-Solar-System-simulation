@@ -697,7 +697,7 @@ protected:
 	void createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx);
 };
 
-#include "planetCreate.hpp";
+#include "planetCreate.hpp"
 
 // This is the main: probably you do not need to touch this!
 int main() {
