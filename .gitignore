@@ -361,3 +361,10 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+CGProject.*
+compile_shaders.sh
+Makefile
+.gitignore
+main
+.vscode/settings.json

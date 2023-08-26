@@ -4,7 +4,6 @@
 
 // This has been adapted from the Vulkan tutorial
 #include "Starter.hpp"
-#define M_PI 3.141595f
 
 // The uniform buffer objects data structures
 // Remember to use the correct alignas(...) value
@@ -28,10 +27,17 @@ struct OverlayUniformBlock {
 	alignas(4) float visible;
 };
 
-struct GlobalUniformBlock {
+struct GlobalUniformBlockDirect {
 	alignas(16) glm::vec3 DlightDir;
 	alignas(16) glm::vec3 DlightColor;
 	alignas(16) glm::vec3 AmbLightColor;
+	alignas(16) glm::vec3 eyePos;
+};
+
+
+struct GlobalUniformBlockPoint {
+	alignas(16) glm::vec3 lightPos;
+	alignas(16) glm::vec4 lightColor;
 	alignas(16) glm::vec3 eyePos;
 };
 
@@ -43,43 +49,40 @@ struct VertexMesh {
 };
 
 
-/* 3 */
-/* Add the C++ datastructure for the required vertex format */
-
-
-
-// MAIN ! 
 class SolarSystem : public BaseProject {
 protected:
-
 	// Current aspect ratio (used by the callback that resized the window
 	float Ar;
 
-	DescriptorSetLayout DSLGubo, DSLMesh;
+	DescriptorSetLayout DSLGubo, DSLPlanet, DSLSun;
 
 	// Vertex formats
 	VertexDescriptor VMesh;
 
-	/* A16 */
-	/* Add the variable that will contain the required Vertex format definition */
-
 	// Pipelines [Shader couples]
-	Pipeline PMesh;
+	Pipeline PPlanet;
+	Pipeline PSun;
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	// Please note that Model objects depends on the corresponding vertex structure
-	Model<VertexMesh> MSun, MMercury, MVenus, MEarth, MMars, MJupiter, MSaturn, MUranus, MNeptune;
+	Model<VertexMesh> MSun,
+		MMercury, MVenus, MEarth, MMars, MJupiter,
+		MSaturn, MSaturnRing, MUranus, MNeptune;
 
-	DescriptorSet DSGubo, DSSun, DSMercury, DSVenus, DSEarth, DSMars, DSJupiter, DSSaturn, DSUranus, DSNeptune;
+	DescriptorSet DSGubo, DSSun,
+		DSMercury, DSVenus, DSEarth, DSMars, DSJupiter,
+		DSSaturn, DSSaturnRing, DSUranus, DSNeptune;
 
-	/* Add the variable that will contain the Descriptor Set for the room */
-	Texture TSun, TMercury, TVenus, TEarth, TMars, TJupiter, TSaturn, TUranus, TNeptune;
+	Texture TSun,
+		TMercury, TVenus, TEarth, TMars, TJupiter,
+		TSaturn, TSaturnRing, TUranus, TNeptune;
 
 	// C++ storage for uniform variables
-	MeshUniformBlock uboSun, uboMercury, uboVenus, uboEarth, uboMars, uboJupiter, uboSaturn, uboUranus, uboNeptune;
-
-	/* Add the variable that will contain the Uniform Block in slot 0, set 1 of the room */
-	GlobalUniformBlock gubo;
+	MeshUniformBlock uboSun,
+		uboMercury, uboVenus, uboEarth, uboMars, uboJupiter,
+		uboSaturn, uboSaturnRing, uboUranus, uboNeptune;
+	GlobalUniformBlockDirect dgubo;
+	GlobalUniformBlockPoint pgubo;
 
 	// Other application parameters
 	glm::vec3 camPos = glm::vec3(0.440019, 0.5, 3.45706);
@@ -93,8 +96,6 @@ protected:
 	float Wheel2Rot = 0.0;
 	float Wheel3Rot = 0.0;
 
-
-
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
@@ -105,11 +106,11 @@ protected:
 		initialBackgroundColor = { 0.0f, 0.005f, 0.01f, 1.0f };
 
 		// Descriptor pool sizes
-		/* A16 */
+
 		/* Update the requirements for the size of the pool */
-		uniformBlocksInPool = 10;
-		texturesInPool = 9;
-		setsInPool = 10;
+		uniformBlocksInPool = 21;
+		texturesInPool = 11;
+		setsInPool = 21;
 
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
@@ -123,7 +124,7 @@ protected:
 	// Here you also create your Descriptor set layouts and load the shaders for the pipelines
 	void localInit() {
 		// Descriptor Layouts [what will be passed to the shaders]
-		DSLMesh.init(this, {
+		DSLPlanet.init(this, {
 			// this array contains the bindings:
 			// first  element : the binding number
 			// second element : the type of element (buffer or texture)
@@ -131,15 +132,20 @@ protected:
 			// third  element : the pipeline stage where it will be used
 			//                  using the corresponding Vulkan constant
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
-			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-			});
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
+			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT}
+		});
 
-		/* A16 */
-		/* Init the new Data Set Layout */
+		DSLSun.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
+			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
+			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+		});
 
 		DSLGubo.init(this, {
-					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
-			});
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
+		});
 
 		// Vertex descriptors
 		VMesh.init(this, {
@@ -178,17 +184,14 @@ protected:
 					   sizeof(glm::vec2), UV}
 			});
 
-		/* A16 */
-		/* Define the new Vertex Format */
 
 		// Pipelines [Shader couples]
 		// The second parameter is the pointer to the vertex definition
 		// Third and fourth parameters are respectively the vertex and fragment shaders
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		PMesh.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/MeshFrag.spv", { &DSLGubo, &DSLMesh });
-
-		/* Create the new pipeline, using shaders "VColorVert.spv" and "VColorFrag.spv" */
+		PPlanet.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/PlanetFrag.spv", { &DSLGubo, &DSLPlanet });
+		PSun.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SunFrag.spv", { &DSLGubo, &DSLSun });
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
 
@@ -219,6 +222,9 @@ protected:
 		createPlanetMesh(4.0f, MSaturn.vertices, MSaturn.indices);
 		MSaturn.initMesh(this, &VMesh);
 
+		createSaturnRing(4.0f, MSaturnRing.vertices, MSaturnRing.indices);
+		MSaturnRing.initMesh(this, &VMesh);
+
 		createPlanetMesh(2.0f, MUranus.vertices, MUranus.indices);
 		MUranus.initMesh(this, &VMesh);
 
@@ -233,6 +239,7 @@ protected:
 		TMars.init(this, "textures/Mars.png");
 		TJupiter.init(this, "textures/Jupiter.png");
 		TSaturn.init(this, "textures/Saturn.png");
+		TSaturnRing.init(this, "textures/SaturnRing.png");
 		TUranus.init(this, "textures/Uranus.png");
 		TNeptune.init(this, "textures/Neptune.png");
 	}
@@ -240,10 +247,11 @@ protected:
 	// Here you create your pipelines and Descriptor Sets!
 	void pipelinesAndDescriptorSetsInit() {
 		// This creates a new pipeline (with the current surface), using its shaders
-		PMesh.create();
+		PPlanet.create();
+		PSun.create();
 
 		// Here you define the data set
-		DSSun.init(this, &DSLMesh, {
+		DSSun.init(this, &DSLSun, {
 			// the second parameter, is a pointer to the Uniform Set Layout of this set
 			// the last parameter is an array, with one element per binding of the set.
 			// first  elmenet : the binding number
@@ -251,106 +259,76 @@ protected:
 			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
 			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
 						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TSun}
-			});
-		DSMercury.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TMercury}
+						{1, TEXTURE, 0, &TSun},
+						{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr},
+						{3, TEXTURE, 0, &TSun}
 			});
 
-		DSVenus.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TVenus}
-			});
+		DSMercury.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TMercury},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
-		DSEarth.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TEarth}
-			});
+		DSVenus.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TVenus},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
-		DSMars.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TMars}
-			});
+		DSEarth.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TEarth},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
-		DSJupiter.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TJupiter}
-			});
+		DSMars.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TMars},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
-		DSSaturn.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TSaturn}
-			});
+		DSJupiter.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TJupiter},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
-		DSUranus.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TUranus}
-			});
+		DSSaturn.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TSaturn},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
-		DSNeptune.init(this, &DSLMesh, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TNeptune}
-			});
+		DSSaturnRing.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TSaturnRing},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
+
+		DSUranus.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TUranus},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
+
+		DSNeptune.init(this, &DSLPlanet, {
+			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TNeptune},
+			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+		});
 
 		DSGubo.init(this, &DSLGubo, {
-					{0, UNIFORM, sizeof(GlobalUniformBlock), nullptr}
-			});
+			{0, UNIFORM, sizeof(GlobalUniformBlockDirect), nullptr}
+		});
 	}
 
 	// Here you destroy your pipelines and Descriptor Sets!
 	// All the object classes defined in Starter.hpp have a method .cleanup() for this purpose
 	void pipelinesAndDescriptorSetsCleanup() {
 		// Cleanup pipelines
-		PMesh.cleanup();
+		PPlanet.cleanup();
+		PSun.cleanup();
 
 		// Cleanup datasets
 		DSSun.cleanup();
@@ -360,6 +338,7 @@ protected:
 		DSMars.cleanup();
 		DSJupiter.cleanup();
 		DSSaturn.cleanup();
+		DSSaturnRing.cleanup();
 		DSUranus.cleanup();
 		DSNeptune.cleanup();
 		DSGubo.cleanup();
@@ -378,8 +357,10 @@ protected:
 		TMars.cleanup();
 		TJupiter.cleanup();
 		TSaturn.cleanup();
+		TSaturnRing.cleanup();
 		TUranus.cleanup();
 		TNeptune.cleanup();
+
 		// Cleanup models
 		MSun.cleanup();
 		MMercury.cleanup();
@@ -388,16 +369,18 @@ protected:
 		MMars.cleanup();
 		MJupiter.cleanup();
 		MSaturn.cleanup();
+		MSaturnRing.cleanup();
 		MUranus.cleanup();
 		MNeptune.cleanup();
-		// Cleanup descriptor set layouts
-		DSLMesh.cleanup();
 
-		/* Cleanup the new Descriptor Set Layout */
+		// Cleanup descriptor set layouts
+		DSLPlanet.cleanup();
 		DSLGubo.cleanup();
+		DSLSun.cleanup();
 
 		// Destroys the pipelines
-		PMesh.destroy();
+		PPlanet.destroy();
+		PSun.destroy();
 	}
 
 	// Here it is the creation of the command buffer:
@@ -406,72 +389,63 @@ protected:
 
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 		// sets global uniforms (see below fro parameters explanation)
-		DSGubo.bind(commandBuffer, PMesh, 0, currentImage);
+		DSGubo.bind(commandBuffer, PPlanet, 0, currentImage);
 
 		// binds the pipeline
-		PMesh.bind(commandBuffer);
-		// For a pipeline object, this command binds the corresponing pipeline to the command buffer passed in its parameter
-
-		// binds the model
-		MSun.bind(commandBuffer);
-
-		// For a Model object, this command binds the corresponing index and vertex buffer
-		// to the command buffer passed in its parameter
-
-		// binds the data set
-		DSSun.bind(commandBuffer, PMesh, 1, currentImage);
-
-		// For a Dataset object, this command binds the corresponing dataset
-		// to the command buffer and pipeline passed in its first and second parameters.
-		// The third parameter is the number of the set being bound
-		// As described in the Vulkan tutorial, a different dataset is required for each image in the swap chain.
-		// This is done automatically in file Starter.hpp, however the command here needs also the index
-		// of the current image in the swap chain, passed in its last parameter
-
-		// record the drawing command in the command buffer
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MSun.indices.size()), 1, 0, 0, 0);
-		// the second parameter is the number of indexes to be drawn. For a Model object,
-		// this can be retrieved with the .indices.size() method.
+		PPlanet.bind(commandBuffer);
+		
 		MMercury.bind(commandBuffer);
-		DSMercury.bind(commandBuffer, PMesh, 1, currentImage);
+		DSMercury.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MMercury.indices.size()), 1, 0, 0, 0);
 
 		MVenus.bind(commandBuffer);
-		DSVenus.bind(commandBuffer, PMesh, 1, currentImage);
+		DSVenus.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MVenus.indices.size()), 1, 0, 0, 0);
 
 		MEarth.bind(commandBuffer);
-		DSEarth.bind(commandBuffer, PMesh, 1, currentImage);
+		DSEarth.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MEarth.indices.size()), 1, 0, 0, 0);
 
 		MMars.bind(commandBuffer);
-		DSMars.bind(commandBuffer, PMesh, 1, currentImage);
+		DSMars.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MMars.indices.size()), 1, 0, 0, 0);
 
 		MJupiter.bind(commandBuffer);
-		DSJupiter.bind(commandBuffer, PMesh, 1, currentImage);
+		DSJupiter.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MJupiter.indices.size()), 1, 0, 0, 0);
 
 		MSaturn.bind(commandBuffer);
-		DSSaturn.bind(commandBuffer, PMesh, 1, currentImage);
+		DSSaturn.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MSaturn.indices.size()), 1, 0, 0, 0);
 
+		MSaturnRing.bind(commandBuffer);
+		DSSaturnRing.bind(commandBuffer, PPlanet, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MSaturnRing.indices.size()), 1, 0, 0, 0);
+
+
 		MUranus.bind(commandBuffer);
-		DSUranus.bind(commandBuffer, PMesh, 1, currentImage);
+		DSUranus.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MUranus.indices.size()), 1, 0, 0, 0);
 
 		MNeptune.bind(commandBuffer);
-		DSNeptune.bind(commandBuffer, PMesh, 1, currentImage);
+		DSNeptune.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MNeptune.indices.size()), 1, 0, 0, 0);
+
+		PSun.bind(commandBuffer);
+		MSun.bind(commandBuffer);
+		DSSun.bind(commandBuffer, PSun, 1, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MSun.indices.size()), 1, 0, 0, 0);
+
 	}
 
 	// Here is where you update the uniforms.
@@ -497,8 +471,8 @@ protected:
 		// If fills the last boolean variable with true if fire has been pressed:
 		//          SPACE on the keyboard, A or B button on the Gamepad, Right mouse button
 
-
-
+		// static float debounce = false;
+		// static int curDebounce = 0;
 
 		// Parameters
 		// Camera FOV-y, Near Plane and Far Plane
@@ -506,25 +480,22 @@ protected:
 		const float nearPlane = 0.1f;
 		const float farPlane = 100.0f;
 		const float rotSpeed = glm::radians(90.0f);
-		const float movSpeed = 1.0f;
+		const float movSpeed = 20.0f;
 
 		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
 		CamBeta = CamBeta - rotSpeed * deltaT * r.x;
-		CamBeta = CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
-			(CamBeta > glm::radians(90.0f) ? glm::radians(90.0f) : CamBeta);
-		CamRho = CamRho - rotSpeed * deltaT * r.z;
-		CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
-			(CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
+		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
+				   (CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
+		// CamRho = CamRho - rotSpeed * deltaT * r.z;
+		// CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
+		// 		   (CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
 
-		glm::mat3 CamDir = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) *
-			glm::rotate(glm::mat4(1.0f), CamBeta, glm::vec3(1, 0, 0)) *
-			glm::rotate(glm::mat4(1.0f), CamRho, glm::vec3(0, 0, 1));
-
-		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 1);
-		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) * glm::vec4(0, 0, -1, 1);
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
 		camPos = camPos + movSpeed * m.x * ux * deltaT;
-		camPos = camPos + movSpeed * m.y * glm::vec3(0, 1, 0) * deltaT;
+		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
 		camPos = camPos + movSpeed * m.z * uz * deltaT;
+		
 
 		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
 		Prj[1][1] *= -1;
@@ -535,18 +506,24 @@ protected:
 		oppPos[0] *= -1;
 		oppPos[1] *= -1;
 		oppPos[2] *= -1;
-		View = glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0, 0, 1)) *
-			glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1, 0, 0)) *
-			glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0, 1, 0)) *
-			glm::translate(glm::mat4(1.0), oppPos);
+		View =  glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
+				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
+				glm::translate(glm::mat4(1.0), -camPos);
 
-		gubo.DlightDir = glm::normalize(glm::vec3(1, 2, 3));
-		gubo.DlightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-		gubo.AmbLightColor = glm::vec3(0.1f);
-		gubo.eyePos = camPos;
+		// Point light
+		pgubo.lightPos = glm::vec3(0, 0, -3);
+		pgubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		pgubo.eyePos = camPos;
+
+		// Direct light
+		dgubo.DlightDir = glm::normalize(glm::vec3(1, 2, 3));
+		dgubo.DlightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		dgubo.AmbLightColor = glm::vec3(0.1f);
+		dgubo.eyePos = camPos;
 
 		// Writes value to the GPU
-		DSGubo.map(currentImage, &gubo, sizeof(gubo), 0);
+		DSGubo.map(currentImage, &dgubo, sizeof(dgubo), 0);
 		// the .map() method of a DataSet object, requires the current image of the swap chain as first parameter
 		// the second parameter is the pointer to the C++ data structure to transfer to the GPU
 		// the third parameter is its size
@@ -561,6 +538,7 @@ protected:
 		uboSun.mMat = World;
 		uboSun.nMat = glm::inverse(glm::transpose(World));
 		DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
+		DSSun.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 
 		World = glm::translate(World, glm::vec3(4, 0, -3)); // Position for Mercury
@@ -571,6 +549,7 @@ protected:
 		uboMercury.mMat = World;
 		uboMercury.nMat = glm::inverse(glm::transpose(World));
 		DSMercury.map(currentImage, &uboMercury, sizeof(uboMercury), 0);
+		DSMercury.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(6, 0, -3)); // Position for Venus
 		uboVenus.amb = 1.0f;
@@ -580,6 +559,7 @@ protected:
 		uboVenus.mMat = World;
 		uboVenus.nMat = glm::inverse(glm::transpose(World));
 		DSVenus.map(currentImage, &uboVenus, sizeof(uboVenus), 0);
+		DSVenus.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(8, 0, -3)); // Position for Earth
 		uboEarth.amb = 1.0f;
@@ -589,6 +569,7 @@ protected:
 		uboEarth.mMat = World;
 		uboEarth.nMat = glm::inverse(glm::transpose(World));
 		DSEarth.map(currentImage, &uboEarth, sizeof(uboEarth), 0);
+		DSEarth.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(10, 0, -3)); // Position for Mars
 		uboMars.amb = 1.0f;
@@ -598,6 +579,7 @@ protected:
 		uboMars.mMat = World;
 		uboMars.nMat = glm::inverse(glm::transpose(World));
 		DSMars.map(currentImage, &uboMars, sizeof(uboMars), 0);
+		DSMars.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(12, 0, -3)); // Position for Jupiter
 		uboJupiter.amb = 1.0f;
@@ -607,6 +589,7 @@ protected:
 		uboJupiter.mMat = World;
 		uboJupiter.nMat = glm::inverse(glm::transpose(World));
 		DSJupiter.map(currentImage, &uboJupiter, sizeof(uboJupiter), 0);
+		DSJupiter.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(14, 0, -3)); // Position for Saturn
 		uboSaturn.amb = 1.0f;
@@ -616,6 +599,17 @@ protected:
 		uboSaturn.mMat = World;
 		uboSaturn.nMat = glm::inverse(glm::transpose(World));
 		DSSaturn.map(currentImage, &uboSaturn, sizeof(uboSaturn), 0);
+		DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+		World = rotate(World, glm::radians(28.0f), glm::vec3(1,0,0));
+		uboSaturnRing.amb = 1.0f;
+		uboSaturnRing.gamma = 180.0f;
+		uboSaturnRing.sColor = glm::vec3(1.0f);
+		uboSaturnRing.mvpMat = Prj * View * World;
+		uboSaturnRing.mMat = World;
+		uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
+		DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
+		DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(16, 0, -3)); // Position for Uranus
 		uboUranus.amb = 1.0f;
@@ -625,6 +619,7 @@ protected:
 		uboUranus.mMat = World;
 		uboUranus.nMat = glm::inverse(glm::transpose(World));
 		DSUranus.map(currentImage, &uboUranus, sizeof(uboUranus), 0);
+		DSUranus.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 		World = glm::translate(World, glm::vec3(18, 0, -3)); // Position for Neptune
 		uboNeptune.amb = 1.0f;
@@ -634,7 +629,7 @@ protected:
 		uboNeptune.mMat = World;
 		uboNeptune.nMat = glm::inverse(glm::transpose(World));
 		DSNeptune.map(currentImage, &uboNeptune, sizeof(uboNeptune), 0);
-
+		DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
 
 		/*
@@ -646,55 +641,9 @@ protected:
 		*/
 	}
 
-	/*void createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
-		const int numLatitudes = 50;   // Number of latitude divisions
-		const int numLongitudes = 50;  // Number of longitude divisions
-
-		// Generate vertices for the sphere
-		for (int lat = 0; lat <= numLatitudes; ++lat) {
-			float theta = static_cast<float>(lat) * M_PI / static_cast<float>(numLatitudes); // Latitude angle
-			for (int lon = 0; lon <= numLongitudes; ++lon) {
-				float phi = static_cast<float>(lon) * 2.0f * M_PI / static_cast<float>(numLongitudes); // Longitude angle
-
-				// Convert spherical coordinates to Cartesian coordinates
-				float x = std::cos(phi) * std::sin(theta);
-				float y = std::cos(theta);
-				float z = std::sin(phi) * std::sin(theta);
-
-				// Vertex position
-				glm::vec3 position(x * radius, y * radius, z * radius);
-				// Normal vector is simply the vertex position normalized, as it points from the origin to the surface
-				glm::vec3 normal = glm::normalize(position);
-				// Texture coordinates based on latitude and longitude
-				float u = static_cast<float>(lon) / static_cast<float>(numLongitudes);
-				float v = static_cast<float>(lat) / static_cast<float>(numLatitudes);
-
-				// Add the vertex to the vertex definition array
-				vDef.push_back({ position, normal, { u, v } });
-			}
-		}
-
-		// Generate indices for the sphere triangles
-		for (int lat = 0; lat < numLatitudes; ++lat) {
-			for (int lon = 0; lon < numLongitudes; ++lon) {
-				int index0 = lat * (numLongitudes + 1) + lon;
-				int index1 = index0 + 1;
-				int index2 = (lat + 1) * (numLongitudes + 1) + lon;
-				int index3 = index2 + 1;
-
-				// First triangle
-				vIdx.push_back(index0);
-				vIdx.push_back(index2);
-				vIdx.push_back(index1);
-
-				// Second triangle
-				vIdx.push_back(index1);
-				vIdx.push_back(index2);
-				vIdx.push_back(index3);
-			}
-		}
-	}*/
 	void createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx);
+
+	void createSaturnRing(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx);
 };
 
 #include "planetCreate.hpp"

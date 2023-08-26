@@ -1,6 +1,3 @@
-#include "Starter.hpp"
-
-#define M_PI 3.141595f
 void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
     const int numLatitudes = 50;   // Number of latitude divisions
     const int numLongitudes = 50;  // Number of longitude divisions
@@ -12,7 +9,7 @@ void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, 
             float phi = static_cast<float>(lon) * 2.0f * M_PI / static_cast<float>(numLongitudes); // Longitude angle
 
             // Convert spherical coordinates to Cartesian coordinates
-            float x = std::cos(phi) * std::sin(theta);
+            float x = -std::cos(phi) * std::sin(theta);
             float y = std::cos(theta);
             float z = std::sin(phi) * std::sin(theta);
 
@@ -48,4 +45,56 @@ void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, 
             vIdx.push_back(index3);
         }
     }
+}
+
+void SolarSystem::createSaturnRing(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
+    /*
+    A_____________B
+    |             | BC <-> outer ring
+    D-------------C
+
+    UV coor:
+	0--->1
+	|
+	v
+	1
+
+    */
+   
+    const int numSlices = 100;
+
+    for (int i = 0; i < numSlices; i++) {
+        float theta = i*2*M_PI/numSlices;
+
+        float x_rel = std::cos(theta)*radius*1.2;
+        float y_rel = std::sin(theta)*radius*1.2;
+
+        float x_a = x_rel;
+        float y_a = y_rel;
+
+        float x_b = x_rel*1.5;
+        float y_b = y_rel*1.5;
+
+        float x_c = x_rel*1.5;
+        float y_c = y_rel*1.5;
+
+        float x_d = x_rel;
+        float y_d = y_rel;
+
+        // only up visible
+        vDef.push_back({{x_a, 0, y_a}, {0,1,0}, {0, 0}}); //A
+		vDef.push_back({{x_b, 0, y_b}, {0,1,0}, {1, 0}}); //B
+		vDef.push_back({{x_c, 0, y_c}, {0,1,0}, {1, 1}}); //C
+		vDef.push_back({{x_d, 0, y_d}, {0,1,0}, {0, 1}}); //D
+    }
+
+	for(int i = 0; i < numSlices*4; i++) {
+		vIdx.push_back((i+0) % (numSlices*4));
+		vIdx.push_back((i+1) % (numSlices*4));
+		vIdx.push_back((i+2) % (numSlices*4));
+
+		vIdx.push_back((i+2) % (numSlices*4));
+		vIdx.push_back((i+3) % (numSlices*4));
+		vIdx.push_back((i+0) % (numSlices*4));
+	}
 }
