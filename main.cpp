@@ -80,22 +80,24 @@ protected:
 		MMercury, MVenus, MEarth, MMars, MJupiter,
 		MSaturn, MSaturnRing, MUranus, MNeptune;
 	Model<VertexSkydome> MSkydome;
-	Model<VertexOverlay> MSplash, MKey;
+	Model<VertexOverlay> MSplash, MKey, MSunI, MMercuryI, MVenusI, MEarthI, MMarsI, MJupiterI, MSaturnI, MUranusI, MNeptuneI;
 
 	DescriptorSet DSGubo, DSSun, DSSkydome,
 		DSMercury, DSVenus, DSEarth, DSMars, DSJupiter,
-		DSSaturn, DSSaturnRing, DSUranus, DSNeptune, DSSplash, DSKey;
+		DSSaturn, DSSaturnRing, DSUranus, DSNeptune, DSSplash, DSKey,
+		DSSunI, DSMercuryI, DSVenusI, DSEarthI, DSMarsI, DSJupiterI, DSSaturnI, DSUranusI, DSNeptuneI;
 
 	Texture TSun, TSkydome,
 		TMercury, TVenus, TEarth, TMars, TJupiter,
-		TSaturn, TSaturnRing, TUranus, TNeptune, TSplash, TKey;
+		TSaturn, TSaturnRing, TUranus, TNeptune, TSplash, TKey,
+		TSunI, TMercuryI, TVenusI, TEarthI, TMarsI, TJupiterI, TSaturnI, TUranusI, TNeptuneI;
 
 	// C++ storage for uniform variables
 	MeshUniformBlock uboSun, uboSkydome,
 		uboMercury, uboVenus, uboEarth, uboMars, uboJupiter,
 		uboSaturn, uboSaturnRing, uboUranus, uboNeptune;
 
-	OverlayUniformBlock uboSplash, uboKey;
+	OverlayUniformBlock uboSplash, uboKey, uboSunI, uboMercuryI, uboVenusI, uboEarthI, uboMarsI, uboJupiterI, uboSaturnI, uboUranusI, uboNeptuneI;
 	GlobalUniformBlockDirect dgubo;
 	GlobalUniformBlockPoint pgubo;
 
@@ -107,7 +109,7 @@ protected:
 	float CamBeta = 0.0f;
 	float CamRho = 0.0f;
 
-	int Splash = 1;
+	int Splash = 0;
 	int Key = 1;
 	float HandleRot = 0.0;
 	float Wheel1Rot = 0.0;
@@ -126,9 +128,9 @@ protected:
 		// Descriptor pool sizes
 
 		/* Update the requirements for the size of the pool */
-		uniformBlocksInPool = 25;
-		texturesInPool = 14;
-		setsInPool = 25;
+		uniformBlocksInPool = 34;
+		texturesInPool = 23;
+		setsInPool = 34;
 
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
@@ -299,10 +301,10 @@ protected:
 		createPlanetMesh(2.0f, MNeptune.vertices, MNeptune.indices);
 		MNeptune.initMesh(this, &VMesh);
 
-		MSplash.vertices = { {{-1.0f, -0.8f}, {0.0f, 0.0f}},
-							 {{-1.0f, 0.8f}, {0.0f,1.0f}},
-							 {{ 1.0f,-0.8f}, {1.0f,0.0f}},
-							 {{ 1.0f, 0.8f}, {1.0f,1.0f}} };
+		MSplash.vertices = { {{-0.5f, 0.82f}, {0.0f,0.0f}},
+						  {{-0.5f, 0.95f}, {0.0f,1.0f}},
+						  {{ 0.5f, 0.82f}, {1.0f,0.0f}},
+						  {{ 0.5f, 0.95f}, {1.0f,1.0f}} };
 		MSplash.indices = { 0, 1, 2,    1, 2, 3 };
 		MSplash.initMesh(this, &VOverlay);
 
@@ -312,6 +314,69 @@ protected:
 						  {{ 0.8f, 0.95f}, {1.0f,1.0f}} };
 		MKey.indices = { 0, 1, 2,    1, 2, 3 };
 		MKey.initMesh(this, &VOverlay);
+
+		MSunI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MSunI.indices = { 0, 1, 2,    1, 2, 3 };
+		MSunI.initMesh(this, &VOverlay);
+
+		MMercuryI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MMercuryI.indices = { 0, 1, 2,    1, 2, 3 };
+		MMercuryI.initMesh(this, &VOverlay);
+
+		MVenusI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MVenusI.indices = { 0, 1, 2,    1, 2, 3 };
+		MVenusI.initMesh(this, &VOverlay);
+
+		MEarthI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MEarthI.indices = { 0, 1, 2,    1, 2, 3 };
+		MEarthI.initMesh(this, &VOverlay);
+
+		MMarsI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MMarsI.indices = { 0, 1, 2,    1, 2, 3 };
+		MMarsI.initMesh(this, &VOverlay);
+
+		MJupiterI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MJupiterI.indices = { 0, 1, 2,    1, 2, 3 };
+		MJupiterI.initMesh(this, &VOverlay);
+
+		MSaturnI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MSaturnI.indices = { 0, 1, 2,    1, 2, 3 };
+		MSaturnI.initMesh(this, &VOverlay);
+
+		MUranusI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MUranusI.indices = { 0, 1, 2,    1, 2, 3 };
+		MUranusI.initMesh(this, &VOverlay);
+
+		MNeptuneI.vertices = { {{-0.7f, -1.0f}, {0.0f, 0.0f}},
+							 {{-0.7f, 0.8f}, {0.0f,1.0f}},
+							 {{ 0.7f,-1.0f}, {1.0f,0.0f}},
+							 {{ 0.7f, 0.8f}, {1.0f,1.0f}} };
+		MNeptuneI.indices = { 0, 1, 2,    1, 2, 3 };
+		MNeptuneI.initMesh(this, &VOverlay);
 
 		// Create the textures
 		// The second parameter is the file name
@@ -327,6 +392,15 @@ protected:
 		TNeptune.init(this, "textures/Neptune.png");
 		TSplash.init(this, "textures/Splash.png");
 		TKey.init(this, "textures/PressSpace.png");
+		TSunI.init(this, "textures/SunI.png");
+		TMercuryI.init(this, "textures/MercuryI.png");
+		TVenusI.init(this, "textures/VenusI.png");
+		TEarthI.init(this, "textures/EarthI.png");
+		TMarsI.init(this, "textures/MarsI.png");
+		TJupiterI.init(this, "textures/JupiterI.png");
+		TSaturnI.init(this, "textures/SaturnI.png");
+		TUranusI.init(this, "textures/UranusI.png");
+		TNeptuneI.init(this, "textures/NeptuneI.png");
 	}
 
 	// Here you create your pipelines and Descriptor Sets!
@@ -420,6 +494,51 @@ protected:
 					{1, TEXTURE, 0, &TKey}
 			});
 
+		DSSunI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TSunI}
+			});
+
+		DSMercuryI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TMercuryI}
+			});
+
+		DSVenusI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TVenusI}
+			});
+
+		DSEarthI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TEarthI}
+			});
+
+		DSMarsI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TMarsI}
+			});
+
+		DSJupiterI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TJupiterI}
+			});
+
+		DSSaturnI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TSaturnI}
+			});
+
+		DSUranusI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TUranusI}
+			});
+
+		DSNeptuneI.init(this, &DSLOverlay, {
+					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+					{1, TEXTURE, 0, &TNeptuneI}
+			});
+
 		DSGubo.init(this, &DSLGubo, {
 			{0, UNIFORM, sizeof(GlobalUniformBlockDirect), nullptr}
 			});
@@ -447,6 +566,16 @@ protected:
 		DSNeptune.cleanup();
 		DSSplash.cleanup();
 		DSKey.cleanup();
+		DSSunI.cleanup();
+		DSMercuryI.cleanup();
+		DSVenusI.cleanup();
+		DSEarthI.cleanup();
+		DSMarsI.cleanup();
+		DSJupiterI.cleanup();
+		DSSaturnI.cleanup();
+		DSUranusI.cleanup();
+		DSNeptuneI.cleanup();
+
 		DSGubo.cleanup();
 		DSSkydome.cleanup();
 	}
@@ -470,6 +599,15 @@ protected:
 		TSkydome.cleanup();
 		TSplash.cleanup();
 		TKey.cleanup();
+		TSunI.cleanup();
+		TMercuryI.cleanup();
+		TVenusI.cleanup();
+		TEarthI.cleanup();
+		TMarsI.cleanup();
+		TJupiterI.cleanup();
+		TSaturnI.cleanup();
+		TUranusI.cleanup();
+		TNeptuneI.cleanup();
 
 		// Cleanup models
 		MSun.cleanup();
@@ -485,6 +623,15 @@ protected:
 		MSkydome.cleanup();
 		MSplash.cleanup();
 		MKey.cleanup();
+		MSunI.cleanup();
+		MMercuryI.cleanup();
+		MVenusI.cleanup();
+		MEarthI.cleanup();
+		MMarsI.cleanup();
+		MJupiterI.cleanup();
+		MSaturnI.cleanup();
+		MUranusI.cleanup();
+		MNeptuneI.cleanup();
 
 		// Cleanup descriptor set layouts
 		DSLPlanet.cleanup();
@@ -579,6 +726,51 @@ protected:
 		DSKey.bind(commandBuffer, POverlay, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MKey.indices.size()), 1, 0, 0, 0);
+
+		MSunI.bind(commandBuffer);
+		DSSunI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MSunI.indices.size()), 1, 0, 0, 0);
+
+		MMercuryI.bind(commandBuffer);
+		DSMercuryI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MMercuryI.indices.size()), 1, 0, 0, 0);
+
+		MVenusI.bind(commandBuffer);
+		DSVenusI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MVenusI.indices.size()), 1, 0, 0, 0);
+
+		MEarthI.bind(commandBuffer);
+		DSEarthI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MEarthI.indices.size()), 1, 0, 0, 0);
+
+		MMarsI.bind(commandBuffer);
+		DSMarsI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MMarsI.indices.size()), 1, 0, 0, 0);
+
+		MJupiterI.bind(commandBuffer);
+		DSJupiterI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MJupiterI.indices.size()), 1, 0, 0, 0);
+
+		MSaturnI.bind(commandBuffer);
+		DSSaturnI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MSaturnI.indices.size()), 1, 0, 0, 0);
+
+		MUranusI.bind(commandBuffer);
+		DSUranusI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MUranusI.indices.size()), 1, 0, 0, 0);
+
+		MNeptuneI.bind(commandBuffer);
+		DSNeptuneI.bind(commandBuffer, POverlay, 0, currentImage);
+		vkCmdDrawIndexed(commandBuffer,
+			static_cast<uint32_t>(MNeptuneI.indices.size()), 1, 0, 0, 0);
 	}
 
 	// Here is where you update the uniforms.
@@ -667,6 +859,47 @@ protected:
 			}
 			break;
 		case 1: // wait key state
+			if (handleFire) {
+				Splash = 2;	// jump to the moving handle state
+			}
+			break;
+		case 2: // wait key state
+			if (handleFire) {
+				Splash = 3;	// jump to the moving handle state
+			}
+			break;
+		case 3: // wait key state
+			if (handleFire) {
+				Splash = 4;	// jump to the moving handle state
+			}
+			break;
+		case 4: // wait key state
+			if (handleFire) {
+				Splash = 5;	// jump to the moving handle state
+			}
+			break;
+		case 5: // wait key state
+			if (handleFire) {
+				Splash = 6;	// jump to the moving handle state
+			}
+			break;
+		case 6: // wait key state
+			if (handleFire) {
+				Splash = 7;	// jump to the moving handle state
+			}
+			break;
+		case 7: // wait key state
+			if (handleFire) {
+				Splash = 8;	// jump to the moving handle state
+			}
+			break;
+		case 8: // wait key state
+			if (handleFire) {
+				Splash = 9;	// jump to the moving handle state
+			}
+			break;
+
+		case 9: // wait key state
 			if (handleFire) {
 				Splash = 0;	// jump to the moving handle state
 			}
@@ -940,11 +1173,38 @@ protected:
 			DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
 		}
 
-		uboKey.visible = (Splash == 1) ? 1.0f : 0.0f;
+		uboKey.visible = (Splash == 0) ? 1.0f : 0.0f;
 		DSKey.map(currentImage, &uboKey, sizeof(uboKey), 0);
 
-		uboSplash.visible = (Splash == 0) ? 1.0f : 0.0f;
+		uboSplash.visible = (Splash >= 1) ? 1.0f : 0.0f;
 		DSSplash.map(currentImage, &uboSplash, sizeof(uboSplash), 0);
+
+		uboSunI.visible = (Splash == 1) ? 1.0f : 0.0f;
+		DSSunI.map(currentImage, &uboSunI, sizeof(uboSunI), 0);
+
+		uboMercuryI.visible = (Splash == 2) ? 1.0f : 0.0f;
+		DSMercuryI.map(currentImage, &uboMercuryI, sizeof(uboMercuryI), 0);
+
+		uboVenusI.visible = (Splash == 3) ? 1.0f : 0.0f;
+		DSVenusI.map(currentImage, &uboVenusI, sizeof(uboVenusI), 0);
+
+		uboEarthI.visible = (Splash == 4) ? 1.0f : 0.0f;
+		DSEarthI.map(currentImage, &uboEarthI, sizeof(uboEarthI), 0);
+
+		uboMarsI.visible = (Splash == 5) ? 1.0f : 0.0f;
+		DSMarsI.map(currentImage, &uboMarsI, sizeof(uboMarsI), 0);
+
+		uboJupiterI.visible = (Splash == 6) ? 1.0f : 0.0f;
+		DSJupiterI.map(currentImage, &uboJupiterI, sizeof(uboJupiterI), 0);
+
+		uboSaturnI.visible = (Splash == 7) ? 1.0f : 0.0f;
+		DSSaturnI.map(currentImage, &uboSaturnI, sizeof(uboSaturnI), 0);
+
+		uboUranusI.visible = (Splash == 8) ? 1.0f : 0.0f;
+		DSUranusI.map(currentImage, &uboUranusI, sizeof(uboUranusI), 0);
+
+		uboNeptuneI.visible = (Splash == 9) ? 1.0f : 0.0f;
+		DSNeptuneI.map(currentImage, &uboNeptuneI, sizeof(uboNeptuneI), 0);
 
 	}
 
