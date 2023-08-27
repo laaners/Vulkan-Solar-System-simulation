@@ -1,0 +1,11 @@
+A: Planet collisions
+A: SkydomeVert
+C: Planet Rotations
+C: Planet axis inclination
+C: Planet orbit inclination
+
+BONUS:
+A: Asteroids
+A: Different descriptions with double click on planet
+C: (Earth) Moon
+C: Stop/keep movement start from previous positions
