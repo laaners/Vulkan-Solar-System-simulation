@@ -61,7 +61,7 @@ struct VertexOverlay {
 
 struct CelestialObjectVulkanData {
 	std::string name;
-	float rot;
+	float* rot;
 	float* rev;
 	Model<VertexMesh> *model;
 	DescriptorSet *DS;
@@ -137,14 +137,12 @@ protected:
 	float UranusRev = 0.0;
 	float NeptuneRev = 0.0;
 
-
 	// Camera Parameters
 	const float FOVy = glm::radians(45.0f);
 	const float nearPlane = 0.1f;
 	const float farPlane = 200.0f;
 	const float rotSpeed = glm::radians(90.0f);
 	const float movSpeed = 20.0f;
-
 
 	float radiusSkydome = 100.0f;
 	int Splash = 0;
@@ -177,8 +175,8 @@ protected:
 	// Here you load and setup all your Vulkan Models and Texutures.
 	// Here you also create your Descriptor set layouts and load the shaders for the pipelines
 	void localInit() {
-		celestialObjects.push_back({"Sun", 0, NULL, &MSun, &DSSun, &TSun, &uboSun});
-		celestialObjects.push_back({"Mercury", 0, &MercuryRev, &MMercury, &DSMercury, &TMercury, &uboMercury});
+		celestialObjects.push_back({"Sun", NULL, NULL, &MSun, &DSSun, &TSun, &uboSun});
+		celestialObjects.push_back({"Mercury", NULL, &MercuryRev, &MMercury, &DSMercury, &TMercury, &uboMercury});
 		celestialObjects.push_back({"Venus", 0, &VenusRev, &MVenus, &DSVenus, &TVenus, &uboVenus});
 		celestialObjects.push_back({"Earth", 0, &EarthRev, &MEarth, &DSEarth, &TEarth, &uboEarth});
 		celestialObjects.push_back({"Mars", 0, &MarsRev, &MMars, &DSMars, &TMars, &uboMars});
