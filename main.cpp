@@ -4,7 +4,7 @@
 
 // This has been adapted from the Vulkan tutorial
 #include "Starter.hpp"
-// #define M_PI 3.1415926
+#define M_PI 3.1415926
 
 // The uniform buffer objects data structures
 // Remember to use the correct alignas(...) value
@@ -107,7 +107,8 @@ protected:
 	float CamBeta = 0.0f;
 	float CamRho = 0.0f;
 
-	int gameState = 1;
+	int Splash = 1;
+	int Key = 1;
 	float HandleRot = 0.0;
 	float Wheel1Rot = 0.0;
 	float Wheel2Rot = 0.0;
@@ -169,7 +170,7 @@ protected:
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT}
-		});
+			});
 
 
 		DSLGubo.init(this, {
@@ -241,7 +242,7 @@ protected:
 		// be used in this pipeline. The first element will be set 0, and so on..
 		PPlanet.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/PlanetFrag.spv", { &DSLGubo, &DSLPlanet });
 		PSun.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SunFrag.spv", { &DSLGubo, &DSLSun });
-		PSkydome.init(this, &VSkydome, "shaders/SkydomeVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
+		PSkydome.init(this, &VSkydome, "shaders/SkydomeVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome });
 		POverlay.init(this, &VOverlay, "shaders/OverlayVert.spv", "shaders/OverlayFrag.spv", { &DSLOverlay });
 		POverlay.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
 			VK_CULL_MODE_NONE, false);
@@ -305,9 +306,9 @@ protected:
 		MSplash.indices = { 0, 1, 2,    1, 2, 3 };
 		MSplash.initMesh(this, &VOverlay);
 
-		MKey.vertices = { {{-0.8f, 0.6f}, {0.0f,0.0f}},
+		MKey.vertices = { {{-0.8f, 0.8f}, {0.0f,0.0f}},
 						  {{-0.8f, 0.95f}, {0.0f,1.0f}},
-						  {{ 0.8f, 0.6f}, {1.0f,0.0f}},
+						  {{ 0.8f, 0.8f}, {1.0f,0.0f}},
 						  {{ 0.8f, 0.95f}, {1.0f,1.0f}} };
 		MKey.indices = { 0, 1, 2,    1, 2, 3 };
 		MKey.initMesh(this, &VOverlay);
@@ -340,7 +341,7 @@ protected:
 		DSSkydome.init(this, &DSLSkydome, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSkydome}
-		});
+			});
 
 		DSSun.init(this, &DSLSun, {
 			// the second parameter, is a pointer to the Uniform Set Layout of this set
@@ -590,6 +591,7 @@ protected:
 		float deltaT;
 		glm::vec3 m = glm::vec3(0.0f), r = glm::vec3(0.0f);
 		bool fire = false;
+		bool fireM = false;
 		getSixAxis(deltaT, m, r, fire);
 		// getSixAxis() is defined in Starter.hpp in the base class.
 		// It fills the float point variable passed in its first parameter with the time
@@ -606,6 +608,12 @@ protected:
 		std::vector<glm::mat4> matrices = updateCamPos(deltaT, m, r);
 		glm::mat4 View = matrices[0];
 		glm::mat4 Prj = matrices[1];
+
+		fireM = glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS;
+
+		static bool wasFireM = false;
+		bool handleFireM = (wasFireM && (!fireM));
+		wasFireM = fireM;
 
 		static bool wasFire = false;
 		bool handleFire = (wasFire && (!fire));
@@ -638,15 +646,29 @@ protected:
 		UranusRot += UranusSpeed * deltaT;
 		NeptuneRot += NeptuneSpeed * deltaT;
 
-		switch (gameState) {		// main state machine implementation
+
+		switch (Key) {		// main state machine implementation
+		case 0: // initial state - show splash screen
+			if (handleFireM) {
+				Key = 1;	// jump to the wait key state
+			}
+			break;
+		case 1: // wait key state
+			if (handleFireM) {
+				Key = 0;	// jump to the moving handle state
+			}
+			break;
+		}
+
+		switch (Splash) {		// main state machine implementation
 		case 0: // initial state - show splash screen
 			if (handleFire) {
-				gameState = 1;	// jump to the wait key state
+				Splash = 1;	// jump to the wait key state
 			}
 			break;
 		case 1: // wait key state
 			if (handleFire) {
-				gameState = 0;	// jump to the moving handle state
+				Splash = 0;	// jump to the moving handle state
 			}
 			break;
 		}
@@ -671,7 +693,7 @@ protected:
 
 		// update Skydome uniforms
 		glm::mat4 World;
-		
+
 		World = glm::mat4(1);
 		uboSkydome.amb = 1.0f; uboSkydome.gamma = 180.0f; uboSkydome.sColor = glm::vec3(0.3f);
 		uboSkydome.mMat = World;
@@ -679,136 +701,249 @@ protected:
 		uboSkydome.mvpMat = Prj * View * World;
 		DSSkydome.map(currentImage, &uboSkydome, sizeof(uboSkydome), 0);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for the Sun
-		uboSun.amb = 1.0f;
-		uboSun.gamma = 180.0f;
-		uboSun.sColor = glm::vec3(1.0f);
-		uboSun.mvpMat = Prj * View * World;
-		uboSun.mMat = World;
-		uboSun.nMat = glm::inverse(glm::transpose(World));
-		DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
-		DSSun.map(currentImage, &pgubo, sizeof(pgubo), 2);
+		if (Key == 1) {
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for the Sun
+			uboSun.amb = 1.0f;
+			uboSun.gamma = 180.0f;
+			uboSun.sColor = glm::vec3(1.0f);
+			uboSun.mvpMat = Prj * View * World;
+			uboSun.mMat = World;
+			uboSun.nMat = glm::inverse(glm::transpose(World));
+			DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
+			DSSun.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, MercuryRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(6, 0, 0)); //Position Mercury
-		uboMercury.amb = 1.0f;
-		uboMercury.gamma = 180.0f;
-		uboMercury.sColor = glm::vec3(1.0f);
-		uboMercury.mvpMat = Prj * View * World;
-		uboMercury.mMat = World;
-		uboMercury.nMat = glm::inverse(glm::transpose(World));
-		DSMercury.map(currentImage, &uboMercury, sizeof(uboMercury), 0);
-		DSMercury.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(8, 0, -3)); //Position Mercury
+			uboMercury.amb = 1.0f;
+			uboMercury.gamma = 180.0f;
+			uboMercury.sColor = glm::vec3(1.0f);
+			uboMercury.mvpMat = Prj * View * World;
+			uboMercury.mMat = World;
+			uboMercury.nMat = glm::inverse(glm::transpose(World));
+			DSMercury.map(currentImage, &uboMercury, sizeof(uboMercury), 0);
+			DSMercury.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, VenusRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(10, 0, 0)); // Position for Venus
-		uboVenus.amb = 1.0f;
-		uboVenus.gamma = 180.0f;
-		uboVenus.sColor = glm::vec3(1.0f);
-		uboVenus.mvpMat = Prj * View * World;
-		uboVenus.mMat = World;
-		uboVenus.nMat = glm::inverse(glm::transpose(World));
-		DSVenus.map(currentImage, &uboVenus, sizeof(uboVenus), 0);
-		DSVenus.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(12, 0, -3)); // Position for Venus
+			uboVenus.amb = 1.0f;
+			uboVenus.gamma = 180.0f;
+			uboVenus.sColor = glm::vec3(1.0f);
+			uboVenus.mvpMat = Prj * View * World;
+			uboVenus.mMat = World;
+			uboVenus.nMat = glm::inverse(glm::transpose(World));
+			DSVenus.map(currentImage, &uboVenus, sizeof(uboVenus), 0);
+			DSVenus.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, EarthRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(18, 0, 0)); // Position for Earth
-		uboEarth.amb = 1.0f;
-		uboEarth.gamma = 180.0f;
-		uboEarth.sColor = glm::vec3(1.0f);
-		uboEarth.mvpMat = Prj * View * World;
-		uboEarth.mMat = World;
-		uboEarth.nMat = glm::inverse(glm::transpose(World));
-		DSEarth.map(currentImage, &uboEarth, sizeof(uboEarth), 0);
-		DSEarth.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(20, 0, -3)); // Position for Earth
+			uboEarth.amb = 1.0f;
+			uboEarth.gamma = 180.0f;
+			uboEarth.sColor = glm::vec3(1.0f);
+			uboEarth.mvpMat = Prj * View * World;
+			uboEarth.mMat = World;
+			uboEarth.nMat = glm::inverse(glm::transpose(World));
+			DSEarth.map(currentImage, &uboEarth, sizeof(uboEarth), 0);
+			DSEarth.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, MarsRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(28, 0, 0)); // Position for Mars
-		uboMars.amb = 1.0f;
-		uboMars.gamma = 180.0f;
-		uboMars.sColor = glm::vec3(1.0f);
-		uboMars.mvpMat = Prj * View * World;
-		uboMars.mMat = World;
-		uboMars.nMat = glm::inverse(glm::transpose(World));
-		DSMars.map(currentImage, &uboMars, sizeof(uboMars), 0);
-		DSMars.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(26, 0, -3)); // Position for Mars
+			uboMars.amb = 1.0f;
+			uboMars.gamma = 180.0f;
+			uboMars.sColor = glm::vec3(1.0f);
+			uboMars.mvpMat = Prj * View * World;
+			uboMars.mMat = World;
+			uboMars.nMat = glm::inverse(glm::transpose(World));
+			DSMars.map(currentImage, &uboMars, sizeof(uboMars), 0);
+			DSMars.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, JupiterRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(40, 0, 0)); // Position for Jupiter
-		uboJupiter.amb = 1.0f;
-		uboJupiter.gamma = 180.0f;
-		uboJupiter.sColor = glm::vec3(1.0f);
-		uboJupiter.mvpMat = Prj * View * World;
-		uboJupiter.mMat = World;
-		uboJupiter.nMat = glm::inverse(glm::transpose(World));
-		DSJupiter.map(currentImage, &uboJupiter, sizeof(uboJupiter), 0);
-		DSJupiter.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(42, 0, -3)); // Position for Jupiter
+			uboJupiter.amb = 1.0f;
+			uboJupiter.gamma = 180.0f;
+			uboJupiter.sColor = glm::vec3(1.0f);
+			uboJupiter.mvpMat = Prj * View * World;
+			uboJupiter.mMat = World;
+			uboJupiter.nMat = glm::inverse(glm::transpose(World));
+			DSJupiter.map(currentImage, &uboJupiter, sizeof(uboJupiter), 0);
+			DSJupiter.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, SaturnRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(54, 0, 0)); // Position for Saturn
-		uboSaturn.amb = 1.0f;
-		uboSaturn.gamma = 180.0f;
-		uboSaturn.sColor = glm::vec3(1.0f);
-		uboSaturn.mvpMat = Prj * View * World;
-		uboSaturn.mMat = World;
-		uboSaturn.nMat = glm::inverse(glm::transpose(World));
-		DSSaturn.map(currentImage, &uboSaturn, sizeof(uboSaturn), 0);
-		DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(56, 0, -3)); // Position for Saturn
+			uboSaturn.amb = 1.0f;
+			uboSaturn.gamma = 180.0f;
+			uboSaturn.sColor = glm::vec3(1.0f);
+			uboSaturn.mvpMat = Prj * View * World;
+			uboSaturn.mMat = World;
+			uboSaturn.nMat = glm::inverse(glm::transpose(World));
+			DSSaturn.map(currentImage, &uboSaturn, sizeof(uboSaturn), 0);
+			DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
-		uboSaturnRing.amb = 1.0f;
-		uboSaturnRing.gamma = 180.0f;
-		uboSaturnRing.sColor = glm::vec3(1.0f);
-		uboSaturnRing.mvpMat = Prj * View * World;
-		uboSaturnRing.mMat = World;
-		uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
-		DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
-		DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
+			uboSaturnRing.amb = 1.0f;
+			uboSaturnRing.gamma = 180.0f;
+			uboSaturnRing.sColor = glm::vec3(1.0f);
+			uboSaturnRing.mvpMat = Prj * View * World;
+			uboSaturnRing.mMat = World;
+			uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
+			DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
+			DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, UranusRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(70, 0, 0)); // Position for Uranus
-		uboUranus.amb = 1.0f;
-		uboUranus.gamma = 180.0f;
-		uboUranus.sColor = glm::vec3(1.0f);
-		uboUranus.mvpMat = Prj * View * World;
-		uboUranus.mMat = World;
-		uboUranus.nMat = glm::inverse(glm::transpose(World));
-		DSUranus.map(currentImage, &uboUranus, sizeof(uboUranus), 0);
-		DSUranus.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(72, 0, -3)); // Position for Uranus
+			uboUranus.amb = 1.0f;
+			uboUranus.gamma = 180.0f;
+			uboUranus.sColor = glm::vec3(1.0f);
+			uboUranus.mvpMat = Prj * View * World;
+			uboUranus.mMat = World;
+			uboUranus.nMat = glm::inverse(glm::transpose(World));
+			DSUranus.map(currentImage, &uboUranus, sizeof(uboUranus), 0);
+			DSUranus.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-		World = glm::mat4(1);
-		World = glm::translate(World, glm::vec3(2, 0, -3));
-		World = glm::rotate(World, NeptuneRot, glm::vec3(0, 1, 0));
-		World = glm::translate(World, glm::vec3(88, 0, 0)); // Position for Neptune
-		uboNeptune.amb = 1.0f;
-		uboNeptune.gamma = 180.0f;
-		uboNeptune.sColor = glm::vec3(1.0f);
-		uboNeptune.mvpMat = Prj * View * World;
-		uboNeptune.mMat = World;
-		uboNeptune.nMat = glm::inverse(glm::transpose(World));
-		DSNeptune.map(currentImage, &uboNeptune, sizeof(uboNeptune), 0);
-		DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(90, 0, -3)); // Position for Neptune
+			uboNeptune.amb = 1.0f;
+			uboNeptune.gamma = 180.0f;
+			uboNeptune.sColor = glm::vec3(1.0f);
+			uboNeptune.mvpMat = Prj * View * World;
+			uboNeptune.mMat = World;
+			uboNeptune.nMat = glm::inverse(glm::transpose(World));
+			DSNeptune.map(currentImage, &uboNeptune, sizeof(uboNeptune), 0);
+			DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
 
+		}
+		else if (Key == 0) {
 
-		uboKey.visible = (gameState == 1) ? 1.0f : 0.0f;
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for the Sun
+			uboSun.amb = 1.0f;
+			uboSun.gamma = 180.0f;
+			uboSun.sColor = glm::vec3(1.0f);
+			uboSun.mvpMat = Prj * View * World;
+			uboSun.mMat = World;
+			uboSun.nMat = glm::inverse(glm::transpose(World));
+			DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
+			DSSun.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, MercuryRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(6, 0, 0)); //Position Mercury
+			uboMercury.amb = 1.0f;
+			uboMercury.gamma = 180.0f;
+			uboMercury.sColor = glm::vec3(1.0f);
+			uboMercury.mvpMat = Prj * View * World;
+			uboMercury.mMat = World;
+			uboMercury.nMat = glm::inverse(glm::transpose(World));
+			DSMercury.map(currentImage, &uboMercury, sizeof(uboMercury), 0);
+			DSMercury.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, VenusRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(10, 0, 0)); // Position for Venus
+			uboVenus.amb = 1.0f;
+			uboVenus.gamma = 180.0f;
+			uboVenus.sColor = glm::vec3(1.0f);
+			uboVenus.mvpMat = Prj * View * World;
+			uboVenus.mMat = World;
+			uboVenus.nMat = glm::inverse(glm::transpose(World));
+			DSVenus.map(currentImage, &uboVenus, sizeof(uboVenus), 0);
+			DSVenus.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, EarthRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(18, 0, 0)); // Position for Earth
+			uboEarth.amb = 1.0f;
+			uboEarth.gamma = 180.0f;
+			uboEarth.sColor = glm::vec3(1.0f);
+			uboEarth.mvpMat = Prj * View * World;
+			uboEarth.mMat = World;
+			uboEarth.nMat = glm::inverse(glm::transpose(World));
+			DSEarth.map(currentImage, &uboEarth, sizeof(uboEarth), 0);
+			DSEarth.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, MarsRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(28, 0, 0)); // Position for Mars
+			uboMars.amb = 1.0f;
+			uboMars.gamma = 180.0f;
+			uboMars.sColor = glm::vec3(1.0f);
+			uboMars.mvpMat = Prj * View * World;
+			uboMars.mMat = World;
+			uboMars.nMat = glm::inverse(glm::transpose(World));
+			DSMars.map(currentImage, &uboMars, sizeof(uboMars), 0);
+			DSMars.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, JupiterRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(40, 0, 0)); // Position for Jupiter
+			uboJupiter.amb = 1.0f;
+			uboJupiter.gamma = 180.0f;
+			uboJupiter.sColor = glm::vec3(1.0f);
+			uboJupiter.mvpMat = Prj * View * World;
+			uboJupiter.mMat = World;
+			uboJupiter.nMat = glm::inverse(glm::transpose(World));
+			DSJupiter.map(currentImage, &uboJupiter, sizeof(uboJupiter), 0);
+			DSJupiter.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, SaturnRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(54, 0, 0)); // Position for Saturn
+			uboSaturn.amb = 1.0f;
+			uboSaturn.gamma = 180.0f;
+			uboSaturn.sColor = glm::vec3(1.0f);
+			uboSaturn.mvpMat = Prj * View * World;
+			uboSaturn.mMat = World;
+			uboSaturn.nMat = glm::inverse(glm::transpose(World));
+			DSSaturn.map(currentImage, &uboSaturn, sizeof(uboSaturn), 0);
+			DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
+			uboSaturnRing.amb = 1.0f;
+			uboSaturnRing.gamma = 180.0f;
+			uboSaturnRing.sColor = glm::vec3(1.0f);
+			uboSaturnRing.mvpMat = Prj * View * World;
+			uboSaturnRing.mMat = World;
+			uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
+			DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
+			DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, UranusRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(70, 0, 0)); // Position for Uranus
+			uboUranus.amb = 1.0f;
+			uboUranus.gamma = 180.0f;
+			uboUranus.sColor = glm::vec3(1.0f);
+			uboUranus.mvpMat = Prj * View * World;
+			uboUranus.mMat = World;
+			uboUranus.nMat = glm::inverse(glm::transpose(World));
+			DSUranus.map(currentImage, &uboUranus, sizeof(uboUranus), 0);
+			DSUranus.map(currentImage, &pgubo, sizeof(pgubo), 2);
+
+			World = glm::mat4(1);
+			World = glm::translate(World, glm::vec3(2, 0, -3));
+			World = glm::rotate(World, NeptuneRot, glm::vec3(0, 1, 0));
+			World = glm::translate(World, glm::vec3(88, 0, 0)); // Position for Neptune
+			uboNeptune.amb = 1.0f;
+			uboNeptune.gamma = 180.0f;
+			uboNeptune.sColor = glm::vec3(1.0f);
+			uboNeptune.mvpMat = Prj * View * World;
+			uboNeptune.mMat = World;
+			uboNeptune.nMat = glm::inverse(glm::transpose(World));
+			DSNeptune.map(currentImage, &uboNeptune, sizeof(uboNeptune), 0);
+			DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
+		}
+
+		uboKey.visible = (Splash == 1) ? 1.0f : 0.0f;
 		DSKey.map(currentImage, &uboKey, sizeof(uboKey), 0);
 
-		uboSplash.visible = (gameState == 0) ? 1.0f : 0.0f;
+		uboSplash.visible = (Splash == 0) ? 1.0f : 0.0f;
 		DSSplash.map(currentImage, &uboSplash, sizeof(uboSplash), 0);
 
 	}
@@ -830,18 +965,18 @@ protected:
 
 		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
 		CamBeta = CamBeta - rotSpeed * deltaT * r.x;
-		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
-				   (CamBeta > glm::radians( 90.0f) ? glm::radians( 90.0f) : CamBeta);
+		CamBeta = CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
+			(CamBeta > glm::radians(90.0f) ? glm::radians(90.0f) : CamBeta);
 		// CamRho = CamRho - rotSpeed * deltaT * r.z;
 		// CamRho = CamRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
 		// 		   (CamRho > glm::radians(180.0f) ? glm::radians(180.0f) : CamRho);
 
-		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
-		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0, 1, 0)) * glm::vec4(0, 0, -1, 1);
 		camPos = camPos + movSpeed * m.x * ux * deltaT;
-		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
+		camPos = camPos + movSpeed * m.y * glm::vec3(0, 1, 0) * deltaT;
 		camPos = camPos + movSpeed * m.z * uz * deltaT;
-		
+
 
 		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
 		Prj[1][1] *= -1;
@@ -851,12 +986,12 @@ protected:
 		oppPos[0] *= -1;
 		oppPos[1] *= -1;
 		oppPos[2] *= -1;
-		View = glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
-				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
-				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
-				glm::translate(glm::mat4(1.0), -camPos);
-		
-		return { View, Prj};
+		View = glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1, 0, 0)) *
+			glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0, 1, 0)) *
+			// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
+			glm::translate(glm::mat4(1.0), -camPos);
+
+		return { View, Prj };
 	}
 };
 
