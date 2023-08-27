@@ -53,9 +53,20 @@ struct VertexSkydome {
 	glm::vec3 norm;
 	glm::vec2 UV;
 };
+
 struct VertexOverlay {
 	glm::vec2 pos;
 	glm::vec2 UV;
+};
+
+struct CelestialObjectVulkanData {
+	std::string name;
+	float rot;
+	float* rev;
+	Model<VertexMesh> *model;
+	DescriptorSet *DS;
+	Texture *tex;
+	MeshUniformBlock *ubo;
 };
 
 
@@ -95,13 +106,14 @@ protected:
 		uboMercury, uboVenus, uboEarth, uboMars, uboJupiter,
 		uboSaturn, uboSaturnRing, uboUranus, uboNeptune;
 
+	std::vector<CelestialObjectVulkanData> celestialObjects = {};
+
 	OverlayUniformBlock uboSplash, uboKey;
 	GlobalUniformBlockDirect dgubo;
 	GlobalUniformBlockPoint pgubo;
 
-
 	// Other application parameters
-	glm::vec3 camPos = glm::vec3(0.440019, 0.5, 3.45706);
+	glm::vec3 camPos = glm::vec3(-5, 0.5, 3.45706);
 		
 	float CamAlpha = 0.0f;
 	float CamBeta = 0.0f;
@@ -109,6 +121,18 @@ protected:
 
 	int gameState = 1;
 	int cameraIsColliding = 0;
+
+	nlohmann::json solarSystemData;
+
+	float MercuryRev = 0.0;
+	float VenusRev = 0.0;
+	float EarthRev = 0.0;
+	float MarsRev = 0.0;
+	float JupiterRev = 0.0;
+	float SaturnRev = 0.0;
+	float UranusRev = 0.0;
+	float NeptuneRev = 0.0;
+
 
 	// Camera Parameters
 	const float FOVy = glm::radians(45.0f);
@@ -149,6 +173,29 @@ protected:
 	// Here you load and setup all your Vulkan Models and Texutures.
 	// Here you also create your Descriptor set layouts and load the shaders for the pipelines
 	void localInit() {
+		celestialObjects.push_back({"Sun", 0, NULL, &MSun, &DSSun, &TSun, &uboSun});
+		celestialObjects.push_back({"Mercury", 0, &MercuryRev, &MMercury, &DSMercury, &TMercury, &uboMercury});
+		celestialObjects.push_back({"Venus", 0, &VenusRev, &MVenus, &DSVenus, &TVenus, &uboVenus});
+		celestialObjects.push_back({"Earth", 0, &EarthRev, &MEarth, &DSEarth, &TEarth, &uboEarth});
+		celestialObjects.push_back({"Mars", 0, &MarsRev, &MMars, &DSMars, &TMars, &uboMars});
+		celestialObjects.push_back({"Jupiter", 0, &JupiterRev, &MJupiter, &DSJupiter, &TJupiter, &uboJupiter});
+		celestialObjects.push_back({"Saturn", 0, &SaturnRev, &MSaturn, &DSSaturn, &TSaturn, &uboSaturn});
+		celestialObjects.push_back({"Uranus", 0, &UranusRev, &MUranus, &DSUranus, &TUranus, &uboUranus});
+		celestialObjects.push_back({"Neptune", 0, &NeptuneRev, &MNeptune, &DSNeptune, &TNeptune, &uboNeptune});
+		
+		std::ifstream configFile("data/solarSystemData.json");
+
+		if (!configFile.is_open()) {
+			throw std::runtime_error("Failed to open planet data file.");
+		}
+
+		std::ostringstream configStringStream;
+		configStringStream << configFile.rdbuf();
+		configFile.close();
+
+		solarSystemData = nlohmann::json::parse(configStringStream.str());
+		std::cerr << solarSystemData["sol"]["scale"]["x"] << std::endl;
+
 		// Descriptor Layouts [what will be passed to the shaders]
 		DSLPlanet.init(this, {
 			// this array contains the bindings:
@@ -167,23 +214,23 @@ protected:
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-			});
+		});
 
 		DSLOverlay.init(this, {
-					{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
-					{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-			});
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+		});
 
 		DSLSkydome.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT}
-			});
+		});
 
 
 		DSLGubo.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
-			});
+		});
 
 		// Vertex descriptors
 		VMesh.init(this, {
@@ -285,36 +332,18 @@ protected:
 		TSkydome.init(this, "textures/Skydome.png");
 
 		// Creates a mesh with direct enumeration of vertices and indices
-
-		createPlanetMesh(3.0f, MSun.vertices, MSun.indices);
-		MSun.initMesh(this, &VMesh);
-
-		createPlanetMesh(0.4f, MMercury.vertices, MMercury.indices);
-		MMercury.initMesh(this, &VMesh);
-
-		createPlanetMesh(1.2f, MVenus.vertices, MVenus.indices);
-		MVenus.initMesh(this, &VMesh);
-
-		createPlanetMesh(1.2f, MEarth.vertices, MEarth.indices);
-		MEarth.initMesh(this, &VMesh);
-
-		createPlanetMesh(0.6f, MMars.vertices, MMars.indices);
-		MMars.initMesh(this, &VMesh);
-
-		createPlanetMesh(5.0f, MJupiter.vertices, MJupiter.indices);
-		MJupiter.initMesh(this, &VMesh);
-
-		createPlanetMesh(4.0f, MSaturn.vertices, MSaturn.indices);
-		MSaturn.initMesh(this, &VMesh);
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			float radius = (float) solarSystemData[co.name]["scale"]["x"];
+			createPlanetMesh(
+				radius,
+				(*co.model).vertices,
+				(*co.model).indices
+			);
+			(*co.model).initMesh(this, &VMesh);
+		}
 
 		createSaturnRing(4.0f, MSaturnRing.vertices, MSaturnRing.indices);
 		MSaturnRing.initMesh(this, &VMesh);
-
-		createPlanetMesh(2.0f, MUranus.vertices, MUranus.indices);
-		MUranus.initMesh(this, &VMesh);
-
-		createPlanetMesh(2.0f, MNeptune.vertices, MNeptune.indices);
-		MNeptune.initMesh(this, &VMesh);
 
 		MSplash.vertices = { {{-1.0f, -0.8f}, {0.0f, 0.0f}},
 							 {{-1.0f, 0.8f}, {0.0f,1.0f}},
@@ -332,16 +361,12 @@ protected:
 
 		// Create the textures
 		// The second parameter is the file name
-		TSun.init(this, "textures/Sun.png");
-		TMercury.init(this, "textures/Mercury.png");
-		TVenus.init(this, "textures/Venus.png");
-		TEarth.init(this, "textures/Earth.png");
-		TMars.init(this, "textures/Mars.png");
-		TJupiter.init(this, "textures/Jupiter.png");
-		TSaturn.init(this, "textures/Saturn.png");
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			std::string texPath = "textures/"+co.name+".png";
+			(*co.tex).init(this, texPath.c_str());
+		}
+
 		TSaturnRing.init(this, "textures/SaturnRing.png");
-		TUranus.init(this, "textures/Uranus.png");
-		TNeptune.init(this, "textures/Neptune.png");
 		TSplash.init(this, "textures/Splash.png");
 		TKey.init(this, "textures/PressSpace.png");
 	}
@@ -358,88 +383,53 @@ protected:
 		DSSkydome.init(this, &DSLSkydome, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSkydome}
-			});
+		});
 
-		DSSun.init(this, &DSLSun, {
-			// the second parameter, is a pointer to the Uniform Set Layout of this set
-			// the last parameter is an array, with one element per binding of the set.
-			// first  elmenet : the binding number
-			// second element : UNIFORM or TEXTURE (an enum) depending on the type
-			// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
-			// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
-						{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-						{1, TEXTURE, 0, &TSun},
-						{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr},
-						{3, TEXTURE, 0, &TSun}
-			});
 
-		DSMercury.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TMercury},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
-
-		DSVenus.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TVenus},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
-
-		DSEarth.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TEarth},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
-
-		DSMars.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TMars},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
-
-		DSJupiter.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TJupiter},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
-
-		DSSaturn.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TSaturn},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			if(co.name.compare("Sun") == 0) {
+				(*co.DS).init(this, &DSLSun, {
+					// the second parameter, is a pointer to the Uniform Set Layout of this set
+					// the last parameter is an array, with one element per binding of the set.
+					// first  elmenet : the binding number
+					// second element : UNIFORM or TEXTURE (an enum) depending on the type
+					// third  element : only for UNIFORMs, the size of the corresponding C++ object. For texture, just put 0
+					// fourth element : only for TEXTUREs, the pointer to the corresponding texture object. For uniforms, use nullptr
+					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+					{1, TEXTURE, 0, &(*co.tex)},
+					{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr},
+					{3, TEXTURE, 0, &(*co.tex)}
+				});
+			}
+			else {
+				(*co.DS).init(this, &DSLPlanet, {
+					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
+					{1, TEXTURE, 0, &(*co.tex)},
+					{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
+				});
+			}
+		}
 
 		DSSaturnRing.init(this, &DSLPlanet, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSaturnRing},
 			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
+		});
 
-		DSUranus.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TUranus},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
-
-		DSNeptune.init(this, &DSLPlanet, {
-			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
-			{1, TEXTURE, 0, &TNeptune},
-			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
 
 		DSSplash.init(this, &DSLOverlay, {
-					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TSplash}
-			});
+			{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TSplash}
+		});
 
 		DSKey.init(this, &DSLOverlay, {
-					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
-					{1, TEXTURE, 0, &TKey}
-			});
+			{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+			{1, TEXTURE, 0, &TKey}
+		});
 
 		DSGubo.init(this, &DSLGubo, {
 			{0, UNIFORM, sizeof(GlobalUniformBlockDirect), nullptr}
-			});
+		});
 	}
 
 	// Here you destroy your pipelines and Descriptor Sets!
@@ -452,16 +442,10 @@ protected:
 		POverlay.cleanup();
 
 		// Cleanup datasets
-		DSSun.cleanup();
-		DSMercury.cleanup();
-		DSVenus.cleanup();
-		DSEarth.cleanup();
-		DSMars.cleanup();
-		DSJupiter.cleanup();
-		DSSaturn.cleanup();
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			(*co.DS).cleanup();
+		}
 		DSSaturnRing.cleanup();
-		DSUranus.cleanup();
-		DSNeptune.cleanup();
 		DSSplash.cleanup();
 		DSKey.cleanup();
 		DSGubo.cleanup();
@@ -474,31 +458,19 @@ protected:
 	// methods: .cleanup() recreates them, while .destroy() delete them completely
 	void localCleanup() {
 		// Cleanup textures
-		TSun.cleanup();
-		TMercury.cleanup();
-		TVenus.cleanup();
-		TEarth.cleanup();
-		TMars.cleanup();
-		TJupiter.cleanup();
-		TSaturn.cleanup();
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			(*co.tex).cleanup();
+		}
 		TSaturnRing.cleanup();
-		TUranus.cleanup();
-		TNeptune.cleanup();
 		TSkydome.cleanup();
 		TSplash.cleanup();
 		TKey.cleanup();
 
 		// Cleanup models
-		MSun.cleanup();
-		MMercury.cleanup();
-		MVenus.cleanup();
-		MEarth.cleanup();
-		MMars.cleanup();
-		MJupiter.cleanup();
-		MSaturn.cleanup();
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			(*co.model).cleanup();
+		}
 		MSaturnRing.cleanup();
-		MUranus.cleanup();
-		MNeptune.cleanup();
 		MSkydome.cleanup();
 		MSplash.cleanup();
 		MKey.cleanup();
@@ -528,57 +500,26 @@ protected:
 		// binds the pipeline
 		PPlanet.bind(commandBuffer);
 
-		MMercury.bind(commandBuffer);
-		DSMercury.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MMercury.indices.size()), 1, 0, 0, 0);
-
-		MVenus.bind(commandBuffer);
-		DSVenus.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MVenus.indices.size()), 1, 0, 0, 0);
-
-		MEarth.bind(commandBuffer);
-		DSEarth.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MEarth.indices.size()), 1, 0, 0, 0);
-
-		MMars.bind(commandBuffer);
-		DSMars.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MMars.indices.size()), 1, 0, 0, 0);
-
-		MJupiter.bind(commandBuffer);
-		DSJupiter.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MJupiter.indices.size()), 1, 0, 0, 0);
-
-		MSaturn.bind(commandBuffer);
-		DSSaturn.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MSaturn.indices.size()), 1, 0, 0, 0);
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			if(co.name.compare("Sun") != 0) {
+				(*co.model).bind(commandBuffer);
+				(*co.DS).bind(commandBuffer, PPlanet, 1, currentImage);
+				vkCmdDrawIndexed(commandBuffer,
+					static_cast<uint32_t>((*co.model).indices.size()), 1, 0, 0, 0);
+			}
+		}
 
 		MSaturnRing.bind(commandBuffer);
 		DSSaturnRing.bind(commandBuffer, PPlanet, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MSaturnRing.indices.size()), 1, 0, 0, 0);
 
-
-		MUranus.bind(commandBuffer);
-		DSUranus.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MUranus.indices.size()), 1, 0, 0, 0);
-
-		MNeptune.bind(commandBuffer);
-		DSNeptune.bind(commandBuffer, PPlanet, 1, currentImage);
-		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MNeptune.indices.size()), 1, 0, 0, 0);
-
 		PSun.bind(commandBuffer);
-		MSun.bind(commandBuffer);
-		DSSun.bind(commandBuffer, PSun, 1, currentImage);
+		CelestialObjectVulkanData co = celestialObjects[0];
+		(*co.model).bind(commandBuffer);
+		(*co.DS).bind(commandBuffer, PSun, 1, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
-			static_cast<uint32_t>(MSun.indices.size()), 1, 0, 0, 0);
+			static_cast<uint32_t>((*co.model).indices.size()), 1, 0, 0, 0);
 
 		PSkydome.bind(commandBuffer);
 		MSkydome.bind(commandBuffer);
@@ -624,8 +565,6 @@ protected:
 		// static int curDebounce = 0;
 		cameraIsColliding = 0;
 		cameraIsColliding = glm::length(camPos-glm::vec3(2, 0, -3)) <= 4.0f;
-		std::cerr << glm::length(camPos-glm::vec3(2, 0, -3)) << std::endl;
-		std::cerr << cameraIsColliding << std::endl;
 
 		std::vector<glm::mat4> matrices = updateCamPos(deltaT, m, r);
 		glm::mat4 View = matrices[0];
@@ -641,62 +580,34 @@ protected:
 		bool handleFire = (wasFire && (!fire));
 		wasFire = fire;
 
-		const float MercurySpeed = glm::radians(90.0f);
-		const float VenusSpeed = glm::radians(75.0f);
-		const float EarthSpeed = glm::radians(70.0f);
-		const float MarsSpeed = glm::radians(65.0f);
-		const float JupiterSpeed = glm::radians(30.0f);
-		const float SaturnSpeed = glm::radians(25.0f);
-		const float UranusSpeed = glm::radians(20.0f);
-		const float NeptuneSpeed = glm::radians(15.0f);
-
-		static float MercuryRot = 0.0;
-		static float VenusRot = 0.0;
-		static float EarthRot = 0.0;
-		static float MarsRot = 0.0;
-		static float JupiterRot = 0.0;
-		static float SaturnRot = 0.0;
-		static float UranusRot = 0.0;
-		static float NeptuneRot = 0.0;
-
-		MercuryRot += MercurySpeed * deltaT;
-		VenusRot += VenusSpeed * deltaT;
-		EarthRot += EarthSpeed * deltaT;
-		MarsRot += MarsSpeed * deltaT;
-		JupiterRot += JupiterSpeed * deltaT;
-		SaturnRot += SaturnSpeed * deltaT;
-		UranusRot += UranusSpeed * deltaT;
-		NeptuneRot += NeptuneSpeed * deltaT;
-
-
 		switch (Key) {		// main state machine implementation
-		case 0: // initial state - show splash screen
-			if (handleFireM) {
-				Key = 1;	// jump to the wait key state
-			}
-			break;
-		case 1: // wait key state
-			if (handleFireM) {
-				Key = 0;	// jump to the moving handle state
-			}
-			break;
+			case 0: // initial state - show splash screen
+				if (handleFireM) {
+					Key = 1;	// jump to the wait key state
+				}
+				break;
+			case 1: // wait key state
+				if (handleFireM) {
+					Key = 0;	// jump to the moving handle state
+				}
+				break;
 		}
 
 		switch (Splash) {		// main state machine implementation
-		case 0: // initial state - show splash screen
-			if (handleFire) {
-				Splash = 1;	// jump to the wait key state
-			}
-			break;
-		case 1: // wait key state
-			if (handleFire) {
-				Splash = 0;	// jump to the moving handle state
-			}
-			break;
+			case 0: // initial state - show splash screen
+				if (handleFire) {
+					Splash = 1;	// jump to the wait key state
+				}
+				break;
+			case 1: // wait key state
+				if (handleFire) {
+					Splash = 0;	// jump to the moving handle state
+				}
+				break;
 		}
 
 		// Point light
-		pgubo.lightPos = glm::vec3(0, 0, -3);
+		pgubo.lightPos = glm::vec3(0, 0, 0); // position of the sun
 		pgubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		pgubo.eyePos = camPos;
 
@@ -725,243 +636,41 @@ protected:
 		uboSkydome.mvpMat = Prj * View * World;// translate(World, camPos);
 		DSSkydome.map(currentImage, &uboSkydome, sizeof(uboSkydome), 0);
 
-		if (Key == 1) {
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for the Sun
-			uboSun.amb = 1.0f;
-			uboSun.gamma = 180.0f;
-			uboSun.sColor = glm::vec3(1.0f);
-			uboSun.mvpMat = Prj * View * World;
-			uboSun.mMat = World;
-			uboSun.nMat = glm::inverse(glm::transpose(World));
-			DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
-			DSSun.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(8, 0, -3)); //Position Mercury
-			uboMercury.amb = 1.0f;
-			uboMercury.gamma = 180.0f;
-			uboMercury.sColor = glm::vec3(1.0f);
-			uboMercury.mvpMat = Prj * View * World;
-			uboMercury.mMat = World;
-			uboMercury.nMat = glm::inverse(glm::transpose(World));
-			DSMercury.map(currentImage, &uboMercury, sizeof(uboMercury), 0);
-			DSMercury.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(12, 0, -3)); // Position for Venus
-			uboVenus.amb = 1.0f;
-			uboVenus.gamma = 180.0f;
-			uboVenus.sColor = glm::vec3(1.0f);
-			uboVenus.mvpMat = Prj * View * World;
-			uboVenus.mMat = World;
-			uboVenus.nMat = glm::inverse(glm::transpose(World));
-			DSVenus.map(currentImage, &uboVenus, sizeof(uboVenus), 0);
-			DSVenus.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(20, 0, -3)); // Position for Earth
-			uboEarth.amb = 1.0f;
-			uboEarth.gamma = 180.0f;
-			uboEarth.sColor = glm::vec3(1.0f);
-			uboEarth.mvpMat = Prj * View * World;
-			uboEarth.mMat = World;
-			uboEarth.nMat = glm::inverse(glm::transpose(World));
-			DSEarth.map(currentImage, &uboEarth, sizeof(uboEarth), 0);
-			DSEarth.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(26, 0, -3)); // Position for Mars
-			uboMars.amb = 1.0f;
-			uboMars.gamma = 180.0f;
-			uboMars.sColor = glm::vec3(1.0f);
-			uboMars.mvpMat = Prj * View * World;
-			uboMars.mMat = World;
-			uboMars.nMat = glm::inverse(glm::transpose(World));
-			DSMars.map(currentImage, &uboMars, sizeof(uboMars), 0);
-			DSMars.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(42, 0, -3)); // Position for Jupiter
-			uboJupiter.amb = 1.0f;
-			uboJupiter.gamma = 180.0f;
-			uboJupiter.sColor = glm::vec3(1.0f);
-			uboJupiter.mvpMat = Prj * View * World;
-			uboJupiter.mMat = World;
-			uboJupiter.nMat = glm::inverse(glm::transpose(World));
-			DSJupiter.map(currentImage, &uboJupiter, sizeof(uboJupiter), 0);
-			DSJupiter.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(56, 0, -3)); // Position for Saturn
-			uboSaturn.amb = 1.0f;
-			uboSaturn.gamma = 180.0f;
-			uboSaturn.sColor = glm::vec3(1.0f);
-			uboSaturn.mvpMat = Prj * View * World;
-			uboSaturn.mMat = World;
-			uboSaturn.nMat = glm::inverse(glm::transpose(World));
-			DSSaturn.map(currentImage, &uboSaturn, sizeof(uboSaturn), 0);
-			DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
-			uboSaturnRing.amb = 1.0f;
-			uboSaturnRing.gamma = 180.0f;
-			uboSaturnRing.sColor = glm::vec3(1.0f);
-			uboSaturnRing.mvpMat = Prj * View * World;
-			uboSaturnRing.mMat = World;
-			uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
-			DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
-			DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(72, 0, -3)); // Position for Uranus
-			uboUranus.amb = 1.0f;
-			uboUranus.gamma = 180.0f;
-			uboUranus.sColor = glm::vec3(1.0f);
-			uboUranus.mvpMat = Prj * View * World;
-			uboUranus.mMat = World;
-			uboUranus.nMat = glm::inverse(glm::transpose(World));
-			DSUranus.map(currentImage, &uboUranus, sizeof(uboUranus), 0);
-			DSUranus.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(90, 0, -3)); // Position for Neptune
-			uboNeptune.amb = 1.0f;
-			uboNeptune.gamma = 180.0f;
-			uboNeptune.sColor = glm::vec3(1.0f);
-			uboNeptune.mvpMat = Prj * View * World;
-			uboNeptune.mMat = World;
-			uboNeptune.nMat = glm::inverse(glm::transpose(World));
-			DSNeptune.map(currentImage, &uboNeptune, sizeof(uboNeptune), 0);
-			DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
+		// update Planets uniforms
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			if(co.rev == NULL) continue;
+			float revSpeed = (float) solarSystemData[co.name]["orbit"]["speed"];
+			(*co.rev) += revSpeed * deltaT;
 		}
-		else if (Key == 0) {
 
+
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			float distanceFromSun = (float) solarSystemData[co.name]["orbit"]["distance-from-sun"];
 			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3)); // Position for the Sun
-			uboSun.amb = 1.0f;
-			uboSun.gamma = 180.0f;
-			uboSun.sColor = glm::vec3(1.0f);
-			uboSun.mvpMat = Prj * View * World;
-			uboSun.mMat = World;
-			uboSun.nMat = glm::inverse(glm::transpose(World));
-			DSSun.map(currentImage, &uboSun, sizeof(uboSun), 0);
-			DSSun.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			if(co.name.compare("Sun") != 0 && Key == 0 && co.rev != NULL) { // rotating planets
+				World = glm::rotate(World, (*co.rev), glm::vec3(0, 1, 0));
+			}
+			World = glm::translate(World, glm::vec3(distanceFromSun, 0, 0)); // distance from sun
+			(*co.ubo).amb = 1.0f;
+			(*co.ubo).gamma = 180.0f;
+			(*co.ubo).sColor = glm::vec3(1.0f);
+			(*co.ubo).mvpMat = Prj * View * World;
+			(*co.ubo).mMat = World;
+			(*co.ubo).nMat = glm::inverse(glm::transpose(World));
+			(*co.DS).map(currentImage, co.ubo, sizeof((*co.ubo)), 0);
+			(*co.DS).map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, MercuryRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(6, 0, 0)); //Position Mercury
-			uboMercury.amb = 1.0f;
-			uboMercury.gamma = 180.0f;
-			uboMercury.sColor = glm::vec3(1.0f);
-			uboMercury.mvpMat = Prj * View * World;
-			uboMercury.mMat = World;
-			uboMercury.nMat = glm::inverse(glm::transpose(World));
-			DSMercury.map(currentImage, &uboMercury, sizeof(uboMercury), 0);
-			DSMercury.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, VenusRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(10, 0, 0)); // Position for Venus
-			uboVenus.amb = 1.0f;
-			uboVenus.gamma = 180.0f;
-			uboVenus.sColor = glm::vec3(1.0f);
-			uboVenus.mvpMat = Prj * View * World;
-			uboVenus.mMat = World;
-			uboVenus.nMat = glm::inverse(glm::transpose(World));
-			DSVenus.map(currentImage, &uboVenus, sizeof(uboVenus), 0);
-			DSVenus.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, EarthRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(18, 0, 0)); // Position for Earth
-			uboEarth.amb = 1.0f;
-			uboEarth.gamma = 180.0f;
-			uboEarth.sColor = glm::vec3(1.0f);
-			uboEarth.mvpMat = Prj * View * World;
-			uboEarth.mMat = World;
-			uboEarth.nMat = glm::inverse(glm::transpose(World));
-			DSEarth.map(currentImage, &uboEarth, sizeof(uboEarth), 0);
-			DSEarth.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, MarsRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(28, 0, 0)); // Position for Mars
-			uboMars.amb = 1.0f;
-			uboMars.gamma = 180.0f;
-			uboMars.sColor = glm::vec3(1.0f);
-			uboMars.mvpMat = Prj * View * World;
-			uboMars.mMat = World;
-			uboMars.nMat = glm::inverse(glm::transpose(World));
-			DSMars.map(currentImage, &uboMars, sizeof(uboMars), 0);
-			DSMars.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, JupiterRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(40, 0, 0)); // Position for Jupiter
-			uboJupiter.amb = 1.0f;
-			uboJupiter.gamma = 180.0f;
-			uboJupiter.sColor = glm::vec3(1.0f);
-			uboJupiter.mvpMat = Prj * View * World;
-			uboJupiter.mMat = World;
-			uboJupiter.nMat = glm::inverse(glm::transpose(World));
-			DSJupiter.map(currentImage, &uboJupiter, sizeof(uboJupiter), 0);
-			DSJupiter.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, SaturnRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(54, 0, 0)); // Position for Saturn
-			uboSaturn.amb = 1.0f;
-			uboSaturn.gamma = 180.0f;
-			uboSaturn.sColor = glm::vec3(1.0f);
-			uboSaturn.mvpMat = Prj * View * World;
-			uboSaturn.mMat = World;
-			uboSaturn.nMat = glm::inverse(glm::transpose(World));
-			DSSaturn.map(currentImage, &uboSaturn, sizeof(uboSaturn), 0);
-			DSSaturn.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
-			uboSaturnRing.amb = 1.0f;
-			uboSaturnRing.gamma = 180.0f;
-			uboSaturnRing.sColor = glm::vec3(1.0f);
-			uboSaturnRing.mvpMat = Prj * View * World;
-			uboSaturnRing.mMat = World;
-			uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
-			DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
-			DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, UranusRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(70, 0, 0)); // Position for Uranus
-			uboUranus.amb = 1.0f;
-			uboUranus.gamma = 180.0f;
-			uboUranus.sColor = glm::vec3(1.0f);
-			uboUranus.mvpMat = Prj * View * World;
-			uboUranus.mMat = World;
-			uboUranus.nMat = glm::inverse(glm::transpose(World));
-			DSUranus.map(currentImage, &uboUranus, sizeof(uboUranus), 0);
-			DSUranus.map(currentImage, &pgubo, sizeof(pgubo), 2);
-
-			World = glm::mat4(1);
-			World = glm::translate(World, glm::vec3(2, 0, -3));
-			World = glm::rotate(World, NeptuneRot, glm::vec3(0, 1, 0));
-			World = glm::translate(World, glm::vec3(88, 0, 0)); // Position for Neptune
-			uboNeptune.amb = 1.0f;
-			uboNeptune.gamma = 180.0f;
-			uboNeptune.sColor = glm::vec3(1.0f);
-			uboNeptune.mvpMat = Prj * View * World;
-			uboNeptune.mMat = World;
-			uboNeptune.nMat = glm::inverse(glm::transpose(World));
-			DSNeptune.map(currentImage, &uboNeptune, sizeof(uboNeptune), 0);
-			DSNeptune.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			if(co.name.compare("Saturn") == 0) { // saturn ring case
+				World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
+				uboSaturnRing.amb = 1.0f;
+				uboSaturnRing.gamma = 180.0f;
+				uboSaturnRing.sColor = glm::vec3(1.0f);
+				uboSaturnRing.mvpMat = Prj * View * World;
+				uboSaturnRing.mMat = World;
+				uboSaturnRing.nMat = glm::inverse(glm::transpose(World));
+				DSSaturnRing.map(currentImage, &uboSaturnRing, sizeof(uboSaturnRing), 0);
+				DSSaturnRing.map(currentImage, &pgubo, sizeof(pgubo), 2);
+			}
 		}
 
 		uboKey.visible = (Splash == 1) ? 1.0f : 0.0f;
@@ -997,6 +706,7 @@ protected:
 		camPos = camPos + movSpeed * m.z * uz * deltaT;
 
 		// skydome check
+		/*
 		std::cerr << camPos[0] << ", "
 				  << camPos[1] << ", "
 				  << camPos[2]
@@ -1005,6 +715,7 @@ protected:
 		std::cerr << CamAlpha << ", "
 				  << CamBeta
 				  << std::endl;
+		*/
 
 		float distanceFromOrigin = glm::length(camPos-glm::vec3(0.0f));
 		if(distanceFromOrigin >= radiusSkydome*0.9 || cameraIsColliding) {

@@ -1,0 +1,171 @@
+{
+    "Sun": {
+        "orbit": {
+            "distance-from-sun": 0,
+            "speed": 0,
+            "inclination": 0
+        },
+        "rotation": {
+            "speed": 15,
+            "axial-tilt": 0
+        },
+        "scale": {
+            "x": 3.0,
+            "y": 3.0,
+            "z": 3.0
+        }
+    },
+    "Mercury": {
+        "orbit": {
+            "distance-from-sun": 8.0,
+            "speed": 4.09,
+            "inclination": 3.38
+        },
+        "rotation": {
+            "speed": 6.10,
+            "axial-tilt": 2.04
+        },
+        "scale": {
+            "x": 0.39,
+            "y": 0.39,
+            "z": 0.39
+        }
+    },
+    "Venus": {
+        "orbit": {
+            "distance-from-sun": 12.0,
+            "speed": 1.6,
+            "inclination": 3.86
+        },
+        "rotation": {
+            "speed": -1.48,
+            "axial-tilt": 2.64
+        },
+        "scale": {
+            "x": 0.95,
+            "y": 0.95,
+            "z": 0.95
+        }
+    },
+    "Earth": {
+        "orbit": {
+            "distance-from-sun": 20.0,
+            "speed": 0.986,
+            "inclination": 7.155
+        },
+        "rotation": {
+          "speed": 360.0,
+          "axial-tilt": 23.439
+        },
+        "scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+        },
+        "moons": {
+            "Moon": {
+                "orbit": {
+                    "distance-from-planet": 7.7,
+                    "speed": 13.333,
+                    "inclination": 5.145
+                },
+                "rotation": {
+                    "speed": 0.075,
+                    "axial-tilt": 6.687
+                },
+                "scale": {
+                    "x": 0.28,
+                    "y": 0.28,
+                    "z": 0.28
+                }
+            }
+        }
+    },
+    "Mars": {
+        "orbit": {
+            "distance-from-sun": 26.0,
+            "speed": 0.524,
+            "inclination": 5.65
+        },
+        "rotation": {
+            "speed": 350.88,
+            "axial-tilt": 25.19
+        },
+        "scale": {
+            "x": 0.53,
+            "y": 0.53,
+            "z": 0.53
+        }
+    },
+    "Jupiter": {
+        "orbit": {
+            "distance-from-sun": 42.0,
+            "speed": 0.0831,
+            "inclination": 6.09
+        },
+        "rotation": {
+            "speed": 864.0,
+            "axial-tilt": 3.13
+        },
+        "scale": {
+            "x": 2.2,
+            "y": 2.2,
+            "z": 2.2
+        }
+    },
+    "Saturn": {
+        "orbit": {
+            "distance-from-sun": 56.0,
+            "speed": 0.0335,
+            "inclination": 5.51
+        },
+        "rotation": {
+            "speed": 836.4,
+            "axial-tilt": 26.73
+        },
+        "scale": {
+            "x": 2,
+            "y": 2,
+            "z": 2
+        },
+        "rings": {
+            "rotation": {
+                "speed": 400.0,
+                "inclination": 0.0
+            },
+            "scale": 52.0
+        }
+    },
+    "Uranus": {
+        "orbit": {
+            "distance-from-sun": 72.0,
+            "speed": 0.0117,
+            "inclination": 6.48
+        },
+        "rotation": {
+            "speed": 508.3,
+            "axial-tilt": 97.77
+        },
+        "scale": {
+            "x": 1.4,
+            "y": 1.4,
+            "z": 1.4
+        }
+    },
+    "Neptune": {
+        "orbit": {
+            "distance-from-sun": 90.0,
+            "speed": 0.006,
+            "inclination": 6.43
+        },
+        "rotation": {
+            "speed": 540.0,
+            "axial-tilt": 28.32
+        },
+        "scale": {
+            "x": 1.4,
+            "y": 1.4,
+            "z": 1.4
+        }
+    }
+}
