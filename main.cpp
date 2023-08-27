@@ -102,16 +102,23 @@ protected:
 
 	// Other application parameters
 	glm::vec3 camPos = glm::vec3(0.440019, 0.5, 3.45706);
-	glm::mat3 camDir = glm::mat3(1.0f);
+		
 	float CamAlpha = 0.0f;
 	float CamBeta = 0.0f;
 	float CamRho = 0.0f;
 
 	int gameState = 1;
-	float HandleRot = 0.0;
-	float Wheel1Rot = 0.0;
-	float Wheel2Rot = 0.0;
-	float Wheel3Rot = 0.0;
+	int cameraIsColliding = 0;
+
+	// Camera Parameters
+	const float FOVy = glm::radians(45.0f);
+	const float nearPlane = 0.1f;
+	const float farPlane = 200.0f;
+	const float rotSpeed = glm::radians(90.0f);
+	const float movSpeed = 20.0f;
+
+
+	float radiusSkydome = 100.0f;
 
 	// Here you set the main application parameters
 	void setWindowParameters() {
@@ -240,8 +247,18 @@ protected:
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
 		PPlanet.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/PlanetFrag.spv", { &DSLGubo, &DSLPlanet });
+		// the following line says if the created mesh model will be visible from the inside or not
+		PPlanet.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
+			VK_CULL_MODE_NONE, false);
+
 		PSun.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SunFrag.spv", { &DSLGubo, &DSLSun });
+		PSun.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
+			VK_CULL_MODE_NONE, false);
+
 		PSkydome.init(this, &VSkydome, "shaders/SkydomeVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
+		PSkydome.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
+			VK_CULL_MODE_NONE, false);
+
 		POverlay.init(this, &VOverlay, "shaders/OverlayVert.spv", "shaders/OverlayFrag.spv", { &DSLOverlay });
 		POverlay.setAdvancedFeatures(VK_COMPARE_OP_LESS_OR_EQUAL, VK_POLYGON_MODE_FILL,
 			VK_CULL_MODE_NONE, false);
@@ -261,10 +278,9 @@ protected:
 		TSkydome.initCubic(this, T2fn);
 		*/
 
-		createSkydome(100.0f, MSkydome.vertices, MSkydome.indices);
+		createSkydome(radiusSkydome, MSkydome.vertices, MSkydome.indices);
 		MSkydome.initMesh(this, &VSkydome);
 		TSkydome.init(this, "textures/Skydome.png");
-
 
 		// Creates a mesh with direct enumeration of vertices and indices
 
@@ -603,6 +619,11 @@ protected:
 
 		// static float debounce = false;
 		// static int curDebounce = 0;
+		cameraIsColliding = 0;
+		cameraIsColliding = glm::length(camPos-glm::vec3(2, 0, -3)) <= 4.0f;
+		std::cerr << glm::length(camPos-glm::vec3(2, 0, -3)) << std::endl;
+		std::cerr << cameraIsColliding << std::endl;
+
 		std::vector<glm::mat4> matrices = updateCamPos(deltaT, m, r);
 		glm::mat4 View = matrices[0];
 		glm::mat4 Prj = matrices[1];
@@ -673,10 +694,12 @@ protected:
 		glm::mat4 World;
 		
 		World = glm::mat4(1);
-		uboSkydome.amb = 1.0f; uboSkydome.gamma = 180.0f; uboSkydome.sColor = glm::vec3(0.3f);
+		uboSkydome.amb = 1.0f;
+		uboSkydome.gamma = 180.0f;
+		uboSkydome.sColor = glm::vec3(0.3f);
 		uboSkydome.mMat = World;
 		uboSkydome.nMat = glm::inverse(glm::transpose(World));
-		uboSkydome.mvpMat = Prj * View * World;
+		uboSkydome.mvpMat = Prj * View * World;// translate(World, camPos);
 		DSSkydome.map(currentImage, &uboSkydome, sizeof(uboSkydome), 0);
 
 		World = glm::mat4(1);
@@ -820,14 +843,6 @@ protected:
 	void createSkydome(float radius, std::vector<VertexSkydome>& vDef, std::vector<uint32_t>& vIdx);
 
 	std::vector<glm::mat4> updateCamPos(float deltaT, glm::vec3 m, glm::vec3 r) {
-		// Parameters
-		// Camera FOV-y, Near Plane and Far Plane
-		const float FOVy = glm::radians(45.0f);
-		const float nearPlane = 0.1f;
-		const float farPlane = 200.0f;
-		const float rotSpeed = glm::radians(90.0f);
-		const float movSpeed = 20.0f;
-
 		CamAlpha = CamAlpha - rotSpeed * deltaT * r.y;
 		CamBeta = CamBeta - rotSpeed * deltaT * r.x;
 		CamBeta  =  CamBeta < glm::radians(-90.0f) ? glm::radians(-90.0f) :
@@ -838,9 +853,27 @@ protected:
 
 		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
 		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+
+		glm::vec3 oldPos = camPos;
+
 		camPos = camPos + movSpeed * m.x * ux * deltaT;
 		camPos = camPos + movSpeed * m.y * glm::vec3(0,1,0) * deltaT;
 		camPos = camPos + movSpeed * m.z * uz * deltaT;
+
+		// skydome check
+		std::cerr << camPos[0] << ", "
+				  << camPos[1] << ", "
+				  << camPos[2]
+				  << std::endl;
+		std::cerr << std::endl;
+		std::cerr << CamAlpha << ", "
+				  << CamBeta
+				  << std::endl;
+
+		float distanceFromOrigin = glm::length(camPos-glm::vec3(0.0f));
+		if(distanceFromOrigin >= radiusSkydome*0.9 || cameraIsColliding) {
+			camPos = oldPos;
+		}
 		
 
 		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
@@ -856,7 +889,7 @@ protected:
 				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
 				glm::translate(glm::mat4(1.0), -camPos);
 		
-		return { View, Prj};
+		return { View, Prj };
 	}
 };
 
