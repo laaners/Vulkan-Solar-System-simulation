@@ -53,6 +53,14 @@ vec3 BlinnSpec(vec3 L, vec3 N, vec3 V, vec3 Ms, float gamma) {
 	return f_specular;
 }
 
+vec3 PhongSpec(vec3 L, vec3 N, vec3 V, vec3 Ms, float gamma) {
+	vec3 omega_r = V; // normalize(gubo.eyePos - fragPos);
+	// vec3 r_lx = 2*N*dot(L,N)-L;
+	vec3 r_lx = -reflect(L,N);
+	float clamped =  clamp(dot(omega_r, r_lx), 0, 1);
+	return Ms*pow(clamped, gamma);
+}
+
 vec3 AmbientLight(vec3 Ma, vec3 Me, vec3 N) {
 	vec3 l_A = C00 + N.x*C11 + N.y*C1m1+N.x*C10 +
 		(N.x*N.y)*C2m2 + (N.y*N.z)*C1m1 + (N.z*N.x)*C11 +
@@ -73,7 +81,7 @@ void main() {
 	vec3 L = lightModelDirection();
 
     // no specular since planet
-	vec3 DiffSpec = LambertDiffuse(L, N, MD) + BlinnSpec(L, N, V, MS, gamma); // arbitrary gamma
+	vec3 DiffSpec = LambertDiffuse(L, N, MD) + PhongSpec(L, N, V, MS, gamma); // arbitrary gamma
 	vec3 Ambient = AmbientLight(MD, ME, N);
 	
 	outColor = vec4(clamp(0.95 * DiffSpec * lightColor.rgb + Ambient,0.0,1.0), 1.0f);
