@@ -109,7 +109,6 @@ void SolarSystem::createDownBar(std::vector<VertexOverlay>& vDef, std::vector<ui
     }
 }
 
-
 void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
     const int numLatitudes = 50;   // Number of latitude divisions
     const int numLongitudes = 50;  // Number of longitude divisions
@@ -182,8 +181,8 @@ void SolarSystem::createSaturnRing(float radius, std::vector<VertexMesh>& vDef, 
         float z_rel = std::sin(theta)*radius*1.2;
 
         vDef.push_back({{x_rel    , 0, z_rel    }, {0,1,0}, {0, 0}}); //A
-		vDef.push_back({{x_rel*1.5, 0, z_rel*1.5}, {0,1,0}, {1, 0}}); //B
-		vDef.push_back({{x_rel*1.5, 0, z_rel*1.5}, {0,1,0}, {1, 1}}); //C
+		vDef.push_back({{x_rel*2.0, 0, z_rel*2.0}, {0,1,0}, {1, 0}}); //B
+		vDef.push_back({{x_rel*2.0, 0, z_rel*2.0}, {0,1,0}, {1, 1}}); //C
 		vDef.push_back({{x_rel    , 0, z_rel    }, {0,1,0}, {0, 1}}); //D
     }
 

@@ -12,6 +12,7 @@ layout(set = 1, binding = 1) uniform sampler2D tex;
 layout(set = 1, binding = 2) uniform GlobalUniformBufferObject {
 	vec3 lightPos;	// position of the point light
 	vec4 lightColor;// color of the point light
+	vec3 AmbLightColor;	// ambient light
 	vec3 eyePos;	// position of the viewer
 } gubo;
 
@@ -61,11 +62,15 @@ vec3 PhongSpec(vec3 L, vec3 N, vec3 V, vec3 Ms, float gamma) {
 	return Ms*pow(clamped, gamma);
 }
 
-vec3 AmbientLight(vec3 Ma, vec3 Me, vec3 N) {
+vec3 AmbientLightHarmonic(vec3 Ma, vec3 Me, vec3 N) {
 	vec3 l_A = C00 + N.x*C11 + N.y*C1m1+N.x*C10 +
 		(N.x*N.y)*C2m2 + (N.y*N.z)*C1m1 + (N.z*N.x)*C11 +
 		(N.x*N.x - N.y*N.y)*C22 + (3*N.z*N.z - 1)*C20;
 	return Ma * l_A + Me;
+}
+
+vec3 AmbientLight(vec3 La, vec3 Ma, vec3 Me) {
+	return Ma * La + Me;
 }
 
 void main() {
@@ -74,15 +79,16 @@ void main() {
 	vec3 MD = texture(tex, fragUV).rgb;			// diffuse color
 	vec3 MA = MD;								// ambient color
 	vec3 MS = vec3(1);							// specular color
-	vec3 ME = vec3(0.002); // texture(texEmit, fragUV).rgb;		// emission color
+	vec3 ME = vec3(0); // texture(texEmit, fragUV).rgb;		// emission color
 
     // pointlight
 	vec3 lightColor = lightModelColor();
 	vec3 L = lightModelDirection();
 
-    // no specular since planet
+    // lambert phong
 	vec3 DiffSpec = LambertDiffuse(L, N, MD) + PhongSpec(L, N, V, MS, gamma); // arbitrary gamma
-	vec3 Ambient = AmbientLight(MD, ME, N);
+	vec3 Ambient = AmbientLightHarmonic(MD, ME, N);
+	Ambient = AmbientLight(gubo.AmbLightColor, MA, ME);
 	
 	outColor = vec4(clamp(0.95 * DiffSpec * lightColor.rgb + Ambient,0.0,1.0), 1.0f);
 }

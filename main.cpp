@@ -35,10 +35,10 @@ struct GlobalUniformBlockDirect {
 	alignas(16) glm::vec3 eyePos;
 };
 
-
 struct GlobalUniformBlockPoint {
 	alignas(16) glm::vec3 lightPos;
 	alignas(16) glm::vec4 lightColor;
+	alignas(16) glm::vec3 AmbLightColor;
 	alignas(16) glm::vec3 eyePos;
 };
 
@@ -766,6 +766,7 @@ protected:
 		// Point light
 		pgubo.lightPos = glm::vec3(0, 0, 0); // position of the sun
 		pgubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		pgubo.AmbLightColor = glm::vec3(0.1f);
 		pgubo.eyePos = camPos;
 
 		// Direct light
