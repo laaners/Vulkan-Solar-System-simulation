@@ -86,7 +86,7 @@ void main() {
 	vec3 L = lightModelDirection();
 
     // lambert phong
-	vec3 DiffSpec = LambertDiffuse(L, N, MD) + PhongSpec(L, N, V, MS, gamma); // arbitrary gamma
+	vec3 DiffSpec = LambertDiffuse(L, N, MD); // + PhongSpec(L, N, V, MS, gamma); // arbitrary gamma
 	vec3 Ambient = AmbientLightHarmonic(MD, ME, N);
 	Ambient = AmbientLight(gubo.AmbLightColor, MA, ME);
 	
