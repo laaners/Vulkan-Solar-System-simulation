@@ -1,0 +1,3 @@
+Planet textures from https://www.solarsystemscope.com/textures/
+Asteroid model from CG course shared assets (bones.013_Mesh.7822)
+Planets infographics www.earthhow.com

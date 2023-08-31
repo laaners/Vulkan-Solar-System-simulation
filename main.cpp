@@ -4,7 +4,7 @@
 
 // This has been adapted from the Vulkan tutorial
 #include "Starter.hpp"
-#define M_PI 3.1415926
+// #define M_PI 3.1415926
 
 // The uniform buffer objects data structures
 // Remember to use the correct alignas(...) value
@@ -125,6 +125,7 @@ protected:
 
 	nlohmann::json solarSystemData;
 
+	float SunRev = 0.0;
 	float MercuryRev = 0.0;
 	float VenusRev = 0.0;
 	float EarthRev = 0.0;
@@ -183,7 +184,7 @@ protected:
 	// Here you load and setup all your Vulkan Models and Texutures.
 	// Here you also create your Descriptor set layouts and load the shaders for the pipelines
 	void localInit() {
-		celestialObjects.push_back({ "Sun", &SunRot, NULL, &MSun, &DSSun, &TSun, &uboSun });
+		celestialObjects.push_back({ "Sun", &SunRot, &SunRev, &MSun, &DSSun, &TSun, &uboSun });
 		celestialObjects.push_back({ "Mercury", &MercuryRot, &MercuryRev, &MMercury, &DSMercury, &TMercury, &uboMercury });
 		celestialObjects.push_back({ "Venus", &VenusRot, &VenusRev, &MVenus, &DSVenus, &TVenus, &uboVenus });
 		celestialObjects.push_back({ "Earth", &EarthRot, &EarthRev, &MEarth, &DSEarth, &TEarth, &uboEarth });
@@ -303,7 +304,7 @@ protected:
 		// PSun.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 		// 	VK_CULL_MODE_NONE, false);
 
-		PSkydome.init(this, &VSkydome, "shaders/SkydomeVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
+		PSkydome.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
 		PSkydome.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 			VK_CULL_MODE_NONE, false);
 
@@ -316,17 +317,6 @@ protected:
 		// Create models
 		// The second parameter is the pointer to the vertex definition for this model
 		// The third parameter is the file name
-		// The last is a constant specifying the file type: currently only OBJ or GLTF
-
-		/*
-		MSkydome.init(this, &VSkydome, "models/SkydomeCube.obj", OBJ);
-		const char *T2fn[] = {
-				"textures/sky/bkg1_right.png", "textures/sky/bkg1_left.png",
-				"textures/sky/bkg1_top.png",   "textures/sky/bkg1_bot.png",
-				"textures/sky/bkg1_front.png", "textures/sky/bkg1_back.png"};
-		TSkydome.initCubic(this, T2fn);
-		*/
-
 		createSkydome(radiusSkydome, MSkydome.vertices, MSkydome.indices);
 		MSkydome.initMesh(this, &VMesh);
 		TSkydome.init(this, "textures/Skydome.png");
@@ -765,89 +755,12 @@ protected:
 
 		// static float debounce = false;
 		// static int curDebounce = 0;
-		cameraIsColliding = 0;
-		cameraIsColliding = glm::length(camPos-glm::vec3(2, 0, -3)) <= 4.0f;
 
 		std::vector<glm::mat4> matrices = updateCamPos(deltaT, m, r);
 		glm::mat4 View = matrices[0];
 		glm::mat4 Prj = matrices[1];
 
 		gameLogic(currentImage, fire, View, Prj, deltaT);
-
-		static bool wasFireM = false;
-		bool handleFireM = (wasFireM && (!fireM));
-		wasFireM = fireM;
-
-		static bool wasFire = false;
-		bool handleFire = (wasFire && (!fire));
-		wasFire = fire;
-
-		switch (Key) {		// main state machine implementation
-			case 0: // initial state - show splash screen
-				if (handleFireM) {
-					Key = 1;	// jump to the wait key state
-				}
-				break;
-			case 1: // wait key state
-				if (handleFireM) {
-					Key = 0;	// jump to the moving handle state
-				}
-				break;
-		}
-
-		switch (Splash) {		// main state machine implementation
-		case 0: // initial state - show splash screen
-			if (handleFire) {
-				Splash = 1;	// jump to the wait key state
-			}
-			break;
-		case 1: // wait key state
-			if (handleFire) {
-				Splash = 2;	// jump to the moving handle state
-			}
-			break;
-		case 2: // wait key state
-			if (handleFire) {
-				Splash = 3;	// jump to the moving handle state
-			}
-			break;
-		case 3: // wait key state
-			if (handleFire) {
-				Splash = 4;	// jump to the moving handle state
-			}
-			break;
-		case 4: // wait key state
-			if (handleFire) {
-				Splash = 5;	// jump to the moving handle state
-			}
-			break;
-		case 5: // wait key state
-			if (handleFire) {
-				Splash = 6;	// jump to the moving handle state
-			}
-			break;
-		case 6: // wait key state
-			if (handleFire) {
-				Splash = 7;	// jump to the moving handle state
-			}
-			break;
-		case 7: // wait key state
-			if (handleFire) {
-				Splash = 8;	// jump to the moving handle state
-			}
-			break;
-		case 8: // wait key state
-			if (handleFire) {
-				Splash = 9;	// jump to the moving handle state
-			}
-			break;
-
-		case 9: // wait key state
-			if (handleFire) {
-				Splash = 0;	// jump to the moving handle state
-			}
-			break;
-		}
 
 		// Point light
 		pgubo.lightPos = glm::vec3(0, 0, 0); // position of the sun
@@ -886,22 +799,33 @@ protected:
 		DSSkydome.map(currentImage, &uboSkydome, sizeof(uboSkydome), 0);
 
 		// update Planets uniforms
-		for(CelestialObjectVulkanData co : celestialObjects) {
-			if(co.rev == NULL) continue;
-			float revSpeed = (float) solarSystemData[co.name]["orbit"]["speed"];
-			(*co.rev) += revSpeed * deltaT;
-		}
+		if(Key == 0) {	
+			for(CelestialObjectVulkanData co : celestialObjects) {
+				if(co.rev == NULL || co.rot == NULL) continue;
 
+				float revSpeed = (float) solarSystemData[co.name]["orbit"]["speed"];
+				(*co.rev) += revSpeed * deltaT;
+
+				float rotSpeed = (float) solarSystemData[co.name]["rotation"]["speed"];
+				(*co.rot) += rotSpeed * deltaT;
+			}
+		}
 
 		for(CelestialObjectVulkanData co : celestialObjects) {
 			float distanceFromSun = (float) solarSystemData[co.name]["orbit"]["distance-from-sun"];
 			World = glm::mat4(1);
-			if(co.name.compare("Sun") != 0 && Key == 0 && co.rev != NULL) { // rotating planets
+			if(co.name.compare("Sun") != 0 && co.rev != NULL) { // rotating planets
+				World = glm::rotate(World, glm::radians((float)solarSystemData[co.name]["orbit"]["inclination"]), glm::vec3(0, 0, 1));
 				World = glm::rotate(World, (*co.rev), glm::vec3(0, 1, 0));
 			}
+
 			World = glm::translate(World, glm::vec3(distanceFromSun, 0, 0)); // distance from sun
-			World = glm::rotate(World, (*co.rot) / 400, glm::vec3(0, 1, 0)); // planets rotation
-			World = glm::rotate(World, 0.1f, glm::vec3(1, 0, 0)); // planets axis tilt
+
+			if(co.rot != NULL) { // rotating planets
+				World = glm::rotate(World, (*co.rot), glm::vec3(0, 1, 0)); // planets rotation
+			}
+			float axisTilt = (float)solarSystemData[co.name]["rotation"]["axial-tilt"];
+			World = glm::rotate(World, axisTilt, glm::vec3(0, -1, 0)); // planets axis tilt
 
 			(*co.ubo).amb = 1.0f;
 			(*co.ubo).gamma = 180.0f;
@@ -914,12 +838,14 @@ protected:
 
 			if (co.name.compare("Saturn") == 0) { // saturn ring case
 				World = glm::mat4(1);
-				if (Key == 0) {
+				if (co.rev != NULL) {
 					World = glm::rotate(World, glm::radians((float)solarSystemData[co.name]["orbit"]["inclination"]), glm::vec3(0, 0, 1));
-					World = glm::rotate(World, (*co.rev) / 3, glm::vec3(0, 1, 0));
+					World = glm::rotate(World, (*co.rev), glm::vec3(0, 1, 0));
 				}
+
 				World = glm::translate(World, glm::vec3(distanceFromSun, 0, 0));
-				World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
+				World = rotate(World, glm::radians(18.0f), glm::vec3(1, 0, 0));
+
 				uboSaturnRing.amb = 1.0f;
 				uboSaturnRing.gamma = 180.0f;
 				uboSaturnRing.sColor = glm::vec3(1.0f);
@@ -954,84 +880,6 @@ protected:
 	}
 
 	void gameLogic(uint32_t currentImage, bool fire, glm::mat4 View, glm::mat4 Prj, float deltaT) {
-		bool fireM = glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS;
-
-		static bool wasFireM = false;
-		bool handleFireM = (wasFireM && (!fireM));
-		wasFireM = fireM;
-
-		// static bool wasFire = false;
-		// bool handleFire = (wasFire && (!fire));
-		// wasFire = fire;
-
-		// switch (Key) {		// main state machine implementation
-		// 	case 0: // initial state - show splash screen
-		// 		if (handleFireM) {
-		// 			Key = 1;	// jump to the wait key state
-		// 		}
-		// 		break;
-		// 	case 1: // wait key state
-		// 		if (handleFireM) {
-		// 			Key = 0;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// }
-
-		// switch (Splash) {		// main state machine implementation
-		// 	case 0: // initial state - show splash screen
-		// 		if (handleFire) {
-		// 			Splash = 1;	// jump to the wait key state
-		// 		}
-		// 		break;
-		// 	case 1: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 2;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 2: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 3;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 3: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 4;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 4: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 5;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 5: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 6;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 6: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 7;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 7: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 8;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// 	case 8: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 9;	// jump to the moving handle state
-		// 		}
-		// 		break;
-
-		// 	case 9: // wait key state
-		// 		if (handleFire) {
-		// 			Splash = 0;	// jump to the moving handle state
-		// 		}
-		// 		break;
-		// }
-
-
 		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
 			double mouseX, mouseY;
 			glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -1061,7 +909,6 @@ protected:
 				) {
 					Splash = (int) i/4;
 					// RebuildPipeline();
-					std::cerr << "Clicked on: " << Splash << std::endl;
 					break;
 				}
 			}
@@ -1110,8 +957,8 @@ protected:
 		// camRho = camRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
 		// 	(camRho > glm::radians(180.0f) ? glm::radians(180.0f) : camRho);
 
-		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
-		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), camAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), camAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
 
 		glm::vec3 oldPos = camPos;
 
@@ -1149,8 +996,8 @@ protected:
 		oppPos[0] *= -1;
 		oppPos[1] *= -1;
 		oppPos[2] *= -1;
-		View = glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
-				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
+		View = glm::rotate(glm::mat4(1.0), -camBeta, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -camAlpha, glm::vec3(0,1,0)) *
 				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
 				glm::translate(glm::mat4(1.0), -camPos);
 		
