@@ -4,7 +4,7 @@
 
 // This has been adapted from the Vulkan tutorial
 #include "Starter.hpp"
-// #define M_PI 3.1415926
+#define M_PI 3.1415926
 
 // The uniform buffer objects data structures
 // Remember to use the correct alignas(...) value
@@ -57,10 +57,10 @@ struct CelestialObjectVulkanData {
 	std::string name;
 	float* rot;
 	float* rev;
-	Model<VertexMesh> *model;
-	DescriptorSet *DS;
-	Texture *tex;
-	MeshUniformBlock *ubo;
+	Model<VertexMesh>* model;
+	DescriptorSet* DS;
+	Texture* tex;
+	MeshUniformBlock* ubo;
 };
 
 
@@ -134,6 +134,16 @@ protected:
 	float UranusRev = 0.0;
 	float NeptuneRev = 0.0;
 
+	float SunRot = 0.0;
+	float MercuryRot = 0.0;
+	float VenusRot = 0.0;
+	float EarthRot = 0.0;
+	float MarsRot = 0.0;
+	float JupiterRot = 0.0;
+	float SaturnRot = 0.0;
+	float UranusRot = 0.0;
+	float NeptuneRot = 0.0;
+
 	// Camera Parameters
 	const float FOVy = glm::radians(45.0f);
 	const float nearPlane = 0.1f;
@@ -173,16 +183,16 @@ protected:
 	// Here you load and setup all your Vulkan Models and Texutures.
 	// Here you also create your Descriptor set layouts and load the shaders for the pipelines
 	void localInit() {
-		celestialObjects.push_back({"Sun", NULL, NULL, &MSun, &DSSun, &TSun, &uboSun});
-		celestialObjects.push_back({"Mercury", NULL, &MercuryRev, &MMercury, &DSMercury, &TMercury, &uboMercury});
-		celestialObjects.push_back({"Venus", 0, &VenusRev, &MVenus, &DSVenus, &TVenus, &uboVenus});
-		celestialObjects.push_back({"Earth", 0, &EarthRev, &MEarth, &DSEarth, &TEarth, &uboEarth});
-		celestialObjects.push_back({"Mars", 0, &MarsRev, &MMars, &DSMars, &TMars, &uboMars});
-		celestialObjects.push_back({"Jupiter", 0, &JupiterRev, &MJupiter, &DSJupiter, &TJupiter, &uboJupiter});
-		celestialObjects.push_back({"Saturn", 0, &SaturnRev, &MSaturn, &DSSaturn, &TSaturn, &uboSaturn});
-		celestialObjects.push_back({"Uranus", 0, &UranusRev, &MUranus, &DSUranus, &TUranus, &uboUranus});
-		celestialObjects.push_back({"Neptune", 0, &NeptuneRev, &MNeptune, &DSNeptune, &TNeptune, &uboNeptune});
-		
+		celestialObjects.push_back({ "Sun", &SunRot, NULL, &MSun, &DSSun, &TSun, &uboSun });
+		celestialObjects.push_back({ "Mercury", &MercuryRot, &MercuryRev, &MMercury, &DSMercury, &TMercury, &uboMercury });
+		celestialObjects.push_back({ "Venus", &VenusRot, &VenusRev, &MVenus, &DSVenus, &TVenus, &uboVenus });
+		celestialObjects.push_back({ "Earth", &EarthRot, &EarthRev, &MEarth, &DSEarth, &TEarth, &uboEarth });
+		celestialObjects.push_back({ "Mars", &MarsRot, &MarsRev, &MMars, &DSMars, &TMars, &uboMars });
+		celestialObjects.push_back({ "Jupiter", &JupiterRot, &JupiterRev, &MJupiter, &DSJupiter, &TJupiter, &uboJupiter });
+		celestialObjects.push_back({ "Saturn", &SaturnRot, &SaturnRev, &MSaturn, &DSSaturn, &TSaturn, &uboSaturn });
+		celestialObjects.push_back({ "Uranus", &UranusRot, &UranusRev, &MUranus, &DSUranus, &TUranus, &uboUranus });
+		celestialObjects.push_back({ "Neptune", &NeptuneRot, &NeptuneRev, &MNeptune, &DSNeptune, &TNeptune, &uboNeptune });
+
 		std::ifstream configFile("data/solarSystemData.json");
 
 		if (!configFile.is_open()) {
@@ -213,23 +223,23 @@ protected:
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-		});
+			});
 
 		DSLOverlay.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-		});
+			});
 
 		DSLSkydome.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT},
 			{2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT}
-		});
+			});
 
 
 		DSLGubo.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
-		});
+			});
 
 		// Vertex descriptors
 		VMesh.init(this, {
@@ -293,7 +303,7 @@ protected:
 		// PSun.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 		// 	VK_CULL_MODE_NONE, false);
 
-		PSkydome.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
+		PSkydome.init(this, &VSkydome, "shaders/SkydomeVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
 		PSkydome.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 			VK_CULL_MODE_NONE, false);
 
@@ -322,8 +332,8 @@ protected:
 		TSkydome.init(this, "textures/Skydome.png");
 
 		// Creates a mesh with direct enumeration of vertices and indices
-		for(CelestialObjectVulkanData co : celestialObjects) {
-			float radius = (float) solarSystemData[co.name]["scale"]["x"];
+		for (CelestialObjectVulkanData co : celestialObjects) {
+			float radius = (float)solarSystemData[co.name]["scale"]["x"];
 			createPlanetMesh(
 				radius,
 				(*co.model).vertices,
@@ -417,8 +427,8 @@ protected:
 
 		// Create the textures
 		// The second parameter is the file name
-		for(CelestialObjectVulkanData co : celestialObjects) {
-			std::string texPath = "textures/"+co.name+".png";
+		for (CelestialObjectVulkanData co : celestialObjects) {
+			std::string texPath = "textures/" + co.name + ".png";
 			(*co.tex).init(this, texPath.c_str());
 		}
 
@@ -448,11 +458,11 @@ protected:
 		DSSkydome.init(this, &DSLSkydome, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSkydome}
-		});
+			});
 
 
-		for(CelestialObjectVulkanData co : celestialObjects) {
-			if(co.name.compare("Sun") == 0) {
+		for (CelestialObjectVulkanData co : celestialObjects) {
+			if (co.name.compare("Sun") == 0) {
 				(*co.DS).init(this, &DSLSun, {
 					// the second parameter, is a pointer to the Uniform Set Layout of this set
 					// the last parameter is an array, with one element per binding of the set.
@@ -464,14 +474,14 @@ protected:
 					{1, TEXTURE, 0, &(*co.tex)},
 					{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr},
 					{3, TEXTURE, 0, &(*co.tex)}
-				});
+					});
 			}
 			else {
 				(*co.DS).init(this, &DSLPlanet, {
 					{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 					{1, TEXTURE, 0, &(*co.tex)},
 					{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-				});
+					});
 			}
 		}
 
@@ -479,7 +489,7 @@ protected:
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSaturnRing},
 			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-		});
+			});
 
 		DSAsteroidsBelt.init(this, &DSLPlanet, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
@@ -490,12 +500,12 @@ protected:
 		DSSplash.init(this, &DSLOverlay, {
 			{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSplash}
-		});
+			});
 
 		DSKey.init(this, &DSLOverlay, {
 			{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TKey}
-		});
+			});
 
 		DSSunI.init(this, &DSLOverlay, {
 					{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
@@ -544,7 +554,7 @@ protected:
 
 		DSGubo.init(this, &DSLGubo, {
 			{0, UNIFORM, sizeof(GlobalUniformBlockDirect), nullptr}
-		});
+			});
 	}
 
 	// Here you destroy your pipelines and Descriptor Sets!
@@ -557,7 +567,7 @@ protected:
 		POverlay.cleanup();
 
 		// Cleanup datasets
-		for(CelestialObjectVulkanData co : celestialObjects) {
+		for (CelestialObjectVulkanData co : celestialObjects) {
 			(*co.DS).cleanup();
 		}
 		DSSaturnRing.cleanup();
@@ -584,7 +594,7 @@ protected:
 	// methods: .cleanup() recreates them, while .destroy() delete them completely
 	void localCleanup() {
 		// Cleanup textures
-		for(CelestialObjectVulkanData co : celestialObjects) {
+		for (CelestialObjectVulkanData co : celestialObjects) {
 			(*co.tex).cleanup();
 		}
 		TSaturnRing.cleanup();
@@ -603,7 +613,7 @@ protected:
 		TNeptuneI.cleanup();
 
 		// Cleanup models
-		for(CelestialObjectVulkanData co : celestialObjects) {
+		for (CelestialObjectVulkanData co : celestialObjects) {
 			(*co.model).cleanup();
 		}
 		MAsteroidsBelt.cleanup();
@@ -646,8 +656,8 @@ protected:
 		// binds the pipeline
 		PPlanet.bind(commandBuffer);
 
-		for(CelestialObjectVulkanData co : celestialObjects) {
-			if(co.name.compare("Sun") != 0) {
+		for (CelestialObjectVulkanData co : celestialObjects) {
+			if (co.name.compare("Sun") != 0) {
 				(*co.model).bind(commandBuffer);
 				(*co.DS).bind(commandBuffer, PPlanet, 1, currentImage);
 				vkCmdDrawIndexed(commandBuffer,
@@ -755,13 +765,89 @@ protected:
 
 		// static float debounce = false;
 		// static int curDebounce = 0;
-
+		cameraIsColliding = 0;
+		cameraIsColliding = glm::length(camPos-glm::vec3(2, 0, -3)) <= 4.0f;
 
 		std::vector<glm::mat4> matrices = updateCamPos(deltaT, m, r);
 		glm::mat4 View = matrices[0];
 		glm::mat4 Prj = matrices[1];
 
 		gameLogic(currentImage, fire, View, Prj, deltaT);
+
+		static bool wasFireM = false;
+		bool handleFireM = (wasFireM && (!fireM));
+		wasFireM = fireM;
+
+		static bool wasFire = false;
+		bool handleFire = (wasFire && (!fire));
+		wasFire = fire;
+
+		switch (Key) {		// main state machine implementation
+			case 0: // initial state - show splash screen
+				if (handleFireM) {
+					Key = 1;	// jump to the wait key state
+				}
+				break;
+			case 1: // wait key state
+				if (handleFireM) {
+					Key = 0;	// jump to the moving handle state
+				}
+				break;
+		}
+
+		switch (Splash) {		// main state machine implementation
+		case 0: // initial state - show splash screen
+			if (handleFire) {
+				Splash = 1;	// jump to the wait key state
+			}
+			break;
+		case 1: // wait key state
+			if (handleFire) {
+				Splash = 2;	// jump to the moving handle state
+			}
+			break;
+		case 2: // wait key state
+			if (handleFire) {
+				Splash = 3;	// jump to the moving handle state
+			}
+			break;
+		case 3: // wait key state
+			if (handleFire) {
+				Splash = 4;	// jump to the moving handle state
+			}
+			break;
+		case 4: // wait key state
+			if (handleFire) {
+				Splash = 5;	// jump to the moving handle state
+			}
+			break;
+		case 5: // wait key state
+			if (handleFire) {
+				Splash = 6;	// jump to the moving handle state
+			}
+			break;
+		case 6: // wait key state
+			if (handleFire) {
+				Splash = 7;	// jump to the moving handle state
+			}
+			break;
+		case 7: // wait key state
+			if (handleFire) {
+				Splash = 8;	// jump to the moving handle state
+			}
+			break;
+		case 8: // wait key state
+			if (handleFire) {
+				Splash = 9;	// jump to the moving handle state
+			}
+			break;
+
+		case 9: // wait key state
+			if (handleFire) {
+				Splash = 0;	// jump to the moving handle state
+			}
+			break;
+		}
 
 		// Point light
 		pgubo.lightPos = glm::vec3(0, 0, 0); // position of the sun
@@ -800,21 +886,23 @@ protected:
 		DSSkydome.map(currentImage, &uboSkydome, sizeof(uboSkydome), 0);
 
 		// update Planets uniforms
-		if(Key == 0) {
-			for(CelestialObjectVulkanData co : celestialObjects) {
-				if(co.rev == NULL) continue;
-				float revSpeed = (float) solarSystemData[co.name]["orbit"]["speed"];
-				(*co.rev) += revSpeed * deltaT;
-			}
+		for(CelestialObjectVulkanData co : celestialObjects) {
+			if(co.rev == NULL) continue;
+			float revSpeed = (float) solarSystemData[co.name]["orbit"]["speed"];
+			(*co.rev) += revSpeed * deltaT;
 		}
+
 
 		for(CelestialObjectVulkanData co : celestialObjects) {
 			float distanceFromSun = (float) solarSystemData[co.name]["orbit"]["distance-from-sun"];
 			World = glm::mat4(1);
-			if(co.name.compare("Sun") != 0 && co.rev != NULL) { // rotating planets, put && Key == 0 to reset position when pressing "M"
+			if(co.name.compare("Sun") != 0 && Key == 0 && co.rev != NULL) { // rotating planets
 				World = glm::rotate(World, (*co.rev), glm::vec3(0, 1, 0));
 			}
 			World = glm::translate(World, glm::vec3(distanceFromSun, 0, 0)); // distance from sun
+			World = glm::rotate(World, (*co.rot) / 400, glm::vec3(0, 1, 0)); // planets rotation
+			World = glm::rotate(World, 0.1f, glm::vec3(1, 0, 0)); // planets axis tilt
+
 			(*co.ubo).amb = 1.0f;
 			(*co.ubo).gamma = 180.0f;
 			(*co.ubo).sColor = glm::vec3(1.0f);
@@ -824,7 +912,13 @@ protected:
 			(*co.DS).map(currentImage, co.ubo, sizeof((*co.ubo)), 0);
 			(*co.DS).map(currentImage, &pgubo, sizeof(pgubo), 2);
 
-			if(co.name.compare("Saturn") == 0) { // saturn ring case
+			if (co.name.compare("Saturn") == 0) { // saturn ring case
+				World = glm::mat4(1);
+				if (Key == 0) {
+					World = glm::rotate(World, glm::radians((float)solarSystemData[co.name]["orbit"]["inclination"]), glm::vec3(0, 0, 1));
+					World = glm::rotate(World, (*co.rev) / 3, glm::vec3(0, 1, 0));
+				}
+				World = glm::translate(World, glm::vec3(distanceFromSun, 0, 0));
 				World = rotate(World, glm::radians(28.0f), glm::vec3(1, 0, 0));
 				uboSaturnRing.amb = 1.0f;
 				uboSaturnRing.gamma = 180.0f;
@@ -1016,8 +1110,8 @@ protected:
 		// camRho = camRho < glm::radians(-180.0f) ? glm::radians(-180.0f) :
 		// 	(camRho > glm::radians(180.0f) ? glm::radians(180.0f) : camRho);
 
-		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), camAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
-		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), camAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
+		glm::vec3 ux = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(1,0,0,1);
+		glm::vec3 uz = glm::rotate(glm::mat4(1.0f), CamAlpha, glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1);
 
 		glm::vec3 oldPos = camPos;
 
@@ -1041,11 +1135,11 @@ protected:
 			}
 		}
 
-		// check if collision with skydome
 		float distanceFromOrigin = glm::length(camPos-glm::vec3(0.0f));
-		if(distanceFromOrigin >= radiusSkydome*radiusSkydome/farPlane) {
+		if(distanceFromOrigin >= radiusSkydome*0.9 || cameraIsColliding) {
 			camPos = oldPos;
 		}
+		
 
 		glm::mat4 Prj = glm::perspective(FOVy, Ar, nearPlane, farPlane);
 		Prj[1][1] *= -1;
@@ -1055,10 +1149,10 @@ protected:
 		oppPos[0] *= -1;
 		oppPos[1] *= -1;
 		oppPos[2] *= -1;
-		View = glm::rotate(glm::mat4(1.0), -camBeta, glm::vec3(1,0,0)) *
-			   glm::rotate(glm::mat4(1.0), -camAlpha, glm::vec3(0,1,0)) *
-			   // glm::rotate(glm::mat4(1.0), -camRho, glm::vec3(0,0,1)) *
-			   glm::translate(glm::mat4(1.0), -camPos);
+		View = glm::rotate(glm::mat4(1.0), -CamBeta, glm::vec3(1,0,0)) *
+				glm::rotate(glm::mat4(1.0), -CamAlpha, glm::vec3(0,1,0)) *
+				// glm::rotate(glm::mat4(1.0), -CamRho, glm::vec3(0,0,1)) *
+				glm::translate(glm::mat4(1.0), -camPos);
 		
 		return { View, Prj };
 	}
