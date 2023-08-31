@@ -1815,11 +1815,11 @@ std::cout << "Starting createInstance()\n"  << std::flush;
 		old_xpos = xpos; old_ypos = ypos;
 
 		const float MOUSE_RES = 10.0f;				
-		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
-		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-			r.y = -m_dx / MOUSE_RES;
-			r.x = -m_dy / MOUSE_RES;
-		}
+		// glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+		// if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+		// 	r.y = -m_dx / MOUSE_RES;
+		// 	r.x = -m_dy / MOUSE_RES;
+		// }
 
 		if(glfwGetKey(window, GLFW_KEY_LEFT)) {
 			r.y = -1.0f;

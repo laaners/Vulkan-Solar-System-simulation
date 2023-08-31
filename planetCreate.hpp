@@ -1,57 +1,4 @@
-void createDownBar_oneline(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx) {
-    // d = planet diameter
-    // SB is space for the 3 buttons: numButtons*d*0.75+numButtons*d*0.1 = numButtons*d*(0.85)
-    // SP is space for the 9 planets: numPlanets*d*1+numPlanets*d*0.1 = numPlanets*d*1.1
-    // SLR times 2 is LR space: d*0.2
-    // 2 = SB+SP+2*SLR
-    // 2 = d*(numButtons*0.85+numPlanets*1.1+0.4)
-    int numPlanets = 9;
-    int numButtons = 3;
-    float diameter = 2.0f / (numButtons*0.85+numPlanets*1.1f+0.4f);
-    float SLR = 0.2*diameter;
-
-    int indices = 0;
-
-    // spaces don't need to be added, adding planets
-    float Lspace;
-    float Dspace = SLR;
-    for(int j = 0; j < 2; j++) {
-        float upV = j*0.2;
-        float downV = (j+1)*0.2;
-        for(int i = 0; i < 5; i++) {
-            Lspace = -1.0+SLR+i*diameter*1.1+j*(diameter*5*1.1);
-            vDef.push_back({{Lspace         , 1-diameter-Dspace},{i*0.2    , upV}}); // A
-            vDef.push_back({{Lspace+diameter, 1-diameter-Dspace},{(i+1)*0.2, upV}}); // B
-            vDef.push_back({{Lspace+diameter, 1-Dspace         },{(i+1)*0.2, downV}}); // C
-            vDef.push_back({{Lspace         , 1-Dspace         },{i*0.2    , downV}}); // D
-            indices += 4;
-            if(indices >= numPlanets*4) break;
-        }
-	}
-
-    // adding buttons
-    Dspace = SLR+diameter*0.25*0.5; //(diameter-diameter*0.75)/2
-    for(int i = 0; i < numButtons; i++) {
-        Lspace = -1.0+SLR+numPlanets*diameter*1.1+0.85*diameter*i;
-        vDef.push_back({{Lspace              , 1-diameter*0.75-Dspace},{i*0.2    , 0.4}}); // A
-        vDef.push_back({{Lspace+diameter*0.75, 1-diameter*0.75-Dspace},{(i+1)*0.2, 0.4}}); // B
-        vDef.push_back({{Lspace+diameter*0.75, 1-Dspace              },{(i+1)*0.2, 0.6}}); // C
-        vDef.push_back({{Lspace              , 1-Dspace              },{i*0.2    , 0.6}}); // D
-        indices += 4;
-    }
-
-    for(int i = 0; i < indices; i+=4) {
-		vIdx.push_back((i+0) % indices);
-		vIdx.push_back((i+1) % indices);
-		vIdx.push_back((i+2) % indices);
-
-		vIdx.push_back((i+2) % indices);
-		vIdx.push_back((i+3) % indices);
-		vIdx.push_back((i+0) % indices);
-    }
-}
-
-void SolarSystem::createDownBar(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx) {
+void SolarSystem::createOverlayLayer(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx) {
     // d = planet diameter
     // SP is space for the 9 planets: numPlanets*d*1+numPlanets*d*0.2 = numPlanets*d*1.2
     // SLR times 2 is LR space: d*1
@@ -83,20 +30,35 @@ void SolarSystem::createDownBar(std::vector<VertexOverlay>& vDef, std::vector<ui
 
     // adding buttons
     Lspace = 1-0.65*diameter;
+    float Uspace;
     for(int i = 0; i < numButtons; i++) {
-        // should be Uspace
-        Dspace = 0.2*diameter+diameter*0.65*i;
-        vDef.push_back({{Lspace              , -1+Dspace              },{i*0.2    , 0.4}}); // A
-        vDef.push_back({{Lspace+diameter*0.55, -1+Dspace              },{(i+1)*0.2, 0.4}}); // B
-        vDef.push_back({{Lspace+diameter*0.55, -1+diameter*0.55+Dspace},{(i+1)*0.2, 0.6}}); // C
-        vDef.push_back({{Lspace              , -1+diameter*0.55+Dspace},{i*0.2    , 0.6}}); // D
+        Uspace = 0.2*diameter+diameter*0.65*i;
+        vDef.push_back({{Lspace              , -1+Uspace              },{i*0.2    , 0.4}}); // A
+        vDef.push_back({{Lspace+diameter*0.55, -1+Uspace              },{(i+1)*0.2, 0.4}}); // B
+        vDef.push_back({{Lspace+diameter*0.55, -1+diameter*0.55+Uspace},{(i+1)*0.2, 0.6}}); // C
+        vDef.push_back({{Lspace              , -1+diameter*0.55+Uspace},{i*0.2    , 0.6}}); // D
         indices += 4;
     }
 
-    std::cerr << vDef[36].pos[0] << "," << vDef[36].pos[1] << std::endl;
-    std::cerr << vDef[37].pos[0] << "," << vDef[37].pos[1] << std::endl;
-    std::cerr << vDef[38].pos[0] << "," << vDef[38].pos[1] << std::endl;
-    std::cerr << vDef[39].pos[0] << "," << vDef[39].pos[1] << std::endl;
+    // adding speed trackbar
+    float trackbarLength = 1.7;
+    float trackbarHeight = 0.13;
+    SLR = 1-trackbarLength/2;
+    Uspace = -1+0.05;
+
+    vDef.push_back({{-1+SLR, Uspace               },{0, 0.6}}); // A
+    vDef.push_back({{     0, Uspace               },{1, 0.6}}); // B
+    vDef.push_back({{     0, Uspace+trackbarHeight},{1, 0.8}}); // C
+    vDef.push_back({{-1+SLR, Uspace+trackbarHeight},{0, 0.8}}); // D
+    indices += 4;
+
+    vDef.push_back({{     0, Uspace               },{0, 0.8}}); // A
+    vDef.push_back({{ 1-SLR, Uspace               },{1, 0.8}}); // B
+    vDef.push_back({{ 1-SLR, Uspace+trackbarHeight},{1, 1.0}}); // C
+    vDef.push_back({{     0, Uspace+trackbarHeight},{0, 1.0}}); // D
+    indices += 4;
+
+    indices += 4;
 
     for(int i = 0; i < indices; i+=4) {
 		vIdx.push_back((i+0) % indices);
@@ -110,8 +72,8 @@ void SolarSystem::createDownBar(std::vector<VertexOverlay>& vDef, std::vector<ui
 }
 
 void SolarSystem::createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
-    const int numLatitudes = 50;   // Number of latitude divisions
-    const int numLongitudes = 50;  // Number of longitude divisions
+    const int numLatitudes = 30;   // Number of latitude divisions
+    const int numLongitudes = 30;  // Number of longitude divisions
 
     // Generate vertices for the sphere
     for (int lat = 0; lat <= numLatitudes; ++lat) {
@@ -198,8 +160,8 @@ void SolarSystem::createSaturnRing(float radius, std::vector<VertexMesh>& vDef, 
 }
 
 void SolarSystem::createSkydome(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx) {
-    const int numLatitudes = 50;   // Number of latitude divisions
-    const int numLongitudes = 50;  // Number of longitude divisions
+    const int numLatitudes = 20;   // Number of latitude divisions
+    const int numLongitudes = 20;  // Number of longitude divisions
 
     // Generate vertices for the sphere
     for (int lat = 0; lat <= numLatitudes; ++lat) {
@@ -250,10 +212,8 @@ void SolarSystem::createAsteroidsBelt(float radius, std::vector<VertexMesh>& vDe
     Model<VertexMesh> MAsteroid;
     
     MAsteroid.init(this, &VMesh, "models/Asteroid.mgcg", MGCG);
-    //MAsteroid.init(this, &VMesh, "models/Asteroid.obj", OBJ);
 
     const int numAsteroids = 400; 
-    //const int numAsteroids = 10; 
 
     for (int j = 0; j < numAsteroids; j++) {
         float theta = j*2*M_PI/numAsteroids;
@@ -308,6 +268,70 @@ void SolarSystem::createAsteroidsBelt(float radius, std::vector<VertexMesh>& vDe
         }
     }
 
-
     MAsteroid.cleanup();
 }
+
+void SolarSystem::createOrbits(nlohmann::json solarSystemData, std::vector<VertexOrbit>& vDef, std::vector<uint32_t>& vIdx) {
+    const int numLatitudes = 3;   // Number of latitude divisions
+    const int numLongitudes = 200;// 120;  // Number of longitude divisions
+
+    float radius = 0.015;
+    
+    std::vector<std::string> cbNames = {
+        "Mercury", "Venus", "Earth", "Mars",
+        "Jupiter", "Saturn", "Uranus", "Neptune"
+    };
+    int cbNum = 8;
+
+    for(std::string coName : cbNames) {
+        float Lspace = (float)solarSystemData[coName]["distance_from_sun"];
+        glm::mat4 inclinationMat = glm::rotate(
+            glm::mat4(1),
+            glm::radians((float)solarSystemData[coName]["ecliptic_inclination"]),
+            glm::vec3(0, 0, 1)
+        );
+        for(int i = 0; i < numLatitudes; i++) {
+            float theta = i*2*M_PI/numLatitudes;
+            for(int j = 0; j < numLongitudes; j++) {
+                float phi = j*2*M_PI/numLongitudes;
+                float x_start = (Lspace+radius)*std::cos(phi);
+                float x_end   = (Lspace+std::cos(theta)*radius)*std::cos(phi);
+                float y = std::sin(theta)*radius;
+                float z_start = (Lspace+radius)*std::sin(phi);
+                float z_end   = (Lspace+radius*std::cos(theta))*std::sin(phi);
+
+                glm::vec3 A = glm::vec3(inclinationMat*glm::vec4(x_start, 0, z_start, 1));
+                glm::vec3 B = glm::vec3(inclinationMat*glm::vec4(x_end  , 0, z_end  , 1));
+                glm::vec3 C = glm::vec3(inclinationMat*glm::vec4(x_end  , 0, z_end  , 1));
+                glm::vec3 D = glm::vec3(inclinationMat*glm::vec4(x_start, 0, z_start, 1));
+
+                vDef.push_back({ A });
+                vDef.push_back({ B });
+                vDef.push_back({ C });
+                vDef.push_back({ D });
+            }
+        }
+    }
+
+
+    for(int i = 0; i < cbNum; i++) {
+        int startIndex = i*numLatitudes*numLongitudes*4;
+        int endIndex = (i+1)*numLatitudes*numLongitudes*4;
+        for(int j = 0; j < numLatitudes*numLongitudes*4; j++) {
+
+            std::vector<int> indices = {
+                (startIndex+j+0) % endIndex,
+                (startIndex+j+1) % endIndex,
+                (startIndex+j+2) % endIndex,
+                (startIndex+j+2) % endIndex,
+                (startIndex+j+3) % endIndex,
+                (startIndex+j+0) % endIndex
+            };
+
+            for(int index : indices)
+                if(index >= startIndex && index <= endIndex)
+                    vIdx.push_back(index);
+        }
+    }
+}
+
