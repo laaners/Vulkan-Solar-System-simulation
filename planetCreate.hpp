@@ -272,16 +272,16 @@ void SolarSystem::createAsteroidsBelt(float radius, std::vector<VertexMesh>& vDe
 }
 
 void SolarSystem::createOrbits(nlohmann::json solarSystemData, std::vector<VertexOrbit>& vDef, std::vector<uint32_t>& vIdx) {
-    const int numLatitudes = 3;   // Number of latitude divisions
-    const int numLongitudes = 200;// 120;  // Number of longitude divisions
+    const int numLatitudes = 5;   // Number of latitude divisions
+    const int numLongitudes = 120;  // Number of longitude divisions
 
     float radius = 0.015;
     
     std::vector<std::string> cbNames = {
         "Mercury", "Venus", "Earth", "Mars",
         "Jupiter", "Saturn", "Uranus", "Neptune"
+        // "Mercury", "Neptune"
     };
-    int cbNum = 8;
 
     for(std::string coName : cbNames) {
         float Lspace = (float)solarSystemData[coName]["distance_from_sun"];
@@ -294,43 +294,42 @@ void SolarSystem::createOrbits(nlohmann::json solarSystemData, std::vector<Verte
             float theta = i*2*M_PI/numLatitudes;
             for(int j = 0; j < numLongitudes; j++) {
                 float phi = j*2*M_PI/numLongitudes;
-                float x_start = (Lspace+radius)*std::cos(phi);
-                float x_end   = (Lspace+std::cos(theta)*radius)*std::cos(phi);
+                float x = (Lspace+std::cos(theta)*radius)*std::cos(phi);
                 float y = std::sin(theta)*radius;
-                float z_start = (Lspace+radius)*std::sin(phi);
-                float z_end   = (Lspace+radius*std::cos(theta))*std::sin(phi);
+                float z = (Lspace+radius*std::cos(theta))*std::sin(phi);
 
-                glm::vec3 A = glm::vec3(inclinationMat*glm::vec4(x_start, 0, z_start, 1));
-                glm::vec3 B = glm::vec3(inclinationMat*glm::vec4(x_end  , 0, z_end  , 1));
-                glm::vec3 C = glm::vec3(inclinationMat*glm::vec4(x_end  , 0, z_end  , 1));
-                glm::vec3 D = glm::vec3(inclinationMat*glm::vec4(x_start, 0, z_start, 1));
+                glm::vec3 P = glm::vec3(inclinationMat*glm::vec4(x, y, z, 1));
 
-                vDef.push_back({ A });
-                vDef.push_back({ B });
-                vDef.push_back({ C });
-                vDef.push_back({ D });
+                vDef.push_back({ P });
             }
         }
     }
 
-
-    for(int i = 0; i < cbNum; i++) {
-        int startIndex = i*numLatitudes*numLongitudes*4;
-        int endIndex = (i+1)*numLatitudes*numLongitudes*4;
-        for(int j = 0; j < numLatitudes*numLongitudes*4; j++) {
-
-            std::vector<int> indices = {
-                (startIndex+j+0) % endIndex,
-                (startIndex+j+1) % endIndex,
-                (startIndex+j+2) % endIndex,
-                (startIndex+j+2) % endIndex,
-                (startIndex+j+3) % endIndex,
-                (startIndex+j+0) % endIndex
-            };
-
-            for(int index : indices)
-                if(index >= startIndex && index <= endIndex)
-                    vIdx.push_back(index);
+    int numVertices = vDef.size();
+    int numVerticesPerOrbit = numLatitudes*numLongitudes;
+    
+    for(int cbN = 0; cbN < cbNames.size(); cbN++) {
+        int startIndex = cbN*numLatitudes*numLongitudes;
+        int endIndex = (cbN+1)*numLatitudes*numLongitudes;
+        for(int k = 0; k < numLatitudes; k++) {
+            for(int j = 0; j < numLongitudes; j++) {
+                int A0 = startIndex + (j+0) % numLongitudes + numLongitudes*(k);
+                int A1 = startIndex + (j+1) % numLongitudes + numLongitudes*(k);
+                int B1 = startIndex + (j+1) % numLongitudes + numLongitudes*(k+1);
+                int B0 = startIndex + (j+0) % numLongitudes + numLongitudes*(k+1);
+                std::vector<int> indices = {
+                    A0 % numVertices,
+                    A1 % numVertices,
+                    B1 % numVertices,
+                    B1 % numVertices,
+                    B0 % numVertices,
+                    A0 % numVertices
+                };
+                
+                for(int index : indices)
+                    if(index >= startIndex && index < endIndex)
+                        vIdx.push_back(index);
+            }
         }
     }
 }
