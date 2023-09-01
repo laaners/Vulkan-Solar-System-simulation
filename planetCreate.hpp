@@ -1,11 +1,11 @@
-void SolarSystem::createOverlayLayer(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx) {
+void SolarSystem::createMouseKeyOverlayLayer(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx) {
     // d = planet diameter
     // SP is space for the 9 planets: numPlanets*d*1+numPlanets*d*0.2 = numPlanets*d*1.2
     // SLR times 2 is LR space: d*1
     // 2 = SB+2*SLR
     // 2 = d*(numPlanets*1.2+2)
-    int numPlanets = 9;
-    int numButtons = 3;
+    int numPlanets = 10;
+    int numButtons = 4;
     float diameter = 2.0f / (numPlanets*1.2f+2);
     float SLR = 1*diameter;
 
@@ -29,14 +29,14 @@ void SolarSystem::createOverlayLayer(std::vector<VertexOverlay>& vDef, std::vect
 	}
 
     // adding buttons
-    Lspace = 1-0.65*diameter;
+    Lspace = 1-0.95*diameter;
     float Uspace;
     for(int i = 0; i < numButtons; i++) {
-        Uspace = 0.2*diameter+diameter*0.65*i;
+        Uspace = 0.2*diameter+diameter*0.95*i;
         vDef.push_back({{Lspace              , -1+Uspace              },{i*0.2    , 0.4}}); // A
-        vDef.push_back({{Lspace+diameter*0.55, -1+Uspace              },{(i+1)*0.2, 0.4}}); // B
-        vDef.push_back({{Lspace+diameter*0.55, -1+diameter*0.55+Uspace},{(i+1)*0.2, 0.6}}); // C
-        vDef.push_back({{Lspace              , -1+diameter*0.55+Uspace},{i*0.2    , 0.6}}); // D
+        vDef.push_back({{Lspace+diameter*0.75, -1+Uspace              },{(i+1)*0.2, 0.4}}); // B
+        vDef.push_back({{Lspace+diameter*0.75, -1+diameter*0.75+Uspace},{(i+1)*0.2, 0.6}}); // C
+        vDef.push_back({{Lspace              , -1+diameter*0.75+Uspace},{i*0.2    , 0.6}}); // D
         indices += 4;
     }
 

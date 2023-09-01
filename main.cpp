@@ -90,6 +90,15 @@ struct CelestialBodyInfoVulkanData {
 	OverlayUniformBlock* ubo;
 };
 
+enum ClickAction {
+	SHOW_INFO_SUN, SHOW_INFO_MERCURY, SHOW_INFO_VENUS, SHOW_INFO_EARTH,
+	SHOW_INFO_MARS, SHOW_INFO_JUPITER, SHOW_INFO_SATURN, SHOW_INFO_URANUS, SHOW_INFO_NEPTUNE,
+	HIDE_INFO,
+	START_MOVING, STOP_MOVING,
+	SHOW_ORBITS, HIDE_ORBITS,
+	SPEED_TRACKBAR_L, SPEED_TRACKBAR_R
+};
+
 class SolarSystem : public BaseProject {
 protected:
 	// Current aspect ratio (used by the callback that resized the window
@@ -160,6 +169,7 @@ protected:
 
 	float speedMultiplier = 1;
 	int isMoving = 0;
+	int orbitsVisibility = 0;
 
 	float SunRev = 0.0;
 	float MercuryRev = 0.0;
@@ -182,7 +192,18 @@ protected:
 	float NeptuneRot = 0.0;
 
 	float radiusSkydome = 250.0f;
-	int Splash = 9;
+	int clickAction = HIDE_INFO;
+	
+	std::vector<glm::vec2> buttonsBounds = {};
+	std::vector<float> velocities = {
+		0.001, 0.002, 0.005,
+		0.01, 0.02, 0.05,
+		0.1, 0.2, 0.5,
+		1, 2, 5,
+		10, 20, 50,
+		100, 200, 500,
+		1000
+	};
 
 	// Camera Parameters
 	const float FOVy = glm::radians(45.0f);
@@ -427,9 +448,13 @@ protected:
 		MSaturnRing.initMesh(this, &VMesh);
 		TSaturnRing.init(this, "textures/SaturnRing.png");
 
-		createOverlayLayer(MKey.vertices, MKey.indices);
+		createMouseKeyOverlayLayer(MKey.vertices, MKey.indices);
 		MKey.initMesh(this, &VOverlay);
-		TKey.init(this, "textures/PressSpace.png");
+		TKey.init(this, "textures/MouseKeyOverlayLayer.png");
+
+		// store buttonsbounds for later use
+		for(VertexOverlay vertex : MKey.vertices)
+			buttonsBounds.push_back(vertex.pos);
 
 		createOrbits(solarSystemData, MOrbits.vertices, MOrbits.indices);
 		MOrbits.initMesh(this, &VOrbits);
@@ -694,7 +719,7 @@ protected:
 		glm::vec3 m = glm::vec3(0.0f), r = glm::vec3(0.0f);
 		bool fire = false;
 		glm::mat4 World;
-		getSixAxis(deltaT, m, r, fire);
+		getSixAxis(deltaT, m, r, fire, buttonsBounds);
 		// getSixAxis() is defined in Starter.hpp in the base class.
 		// It fills the float point variable passed in its first parameter with the time
 		// since the last call to the procedure.
@@ -847,10 +872,11 @@ protected:
 		uboOrbits.mvpMat = Prj *  View * World;
 		uboOrbits.mMat = World;
 		uboOrbits.nMat = glm::inverse(glm::transpose(World));
-		uboOrbits.visible = 1;
+		uboOrbits.visible = orbitsVisibility;
 		DSOrbits.map(currentImage, &uboOrbits, sizeof(uboOrbits), 0);
 
 		// OverlaySpeedIndicator--------------------------------------------------
+		// uboOverlaySpeedIndicator.x = 0;
 		DSOverlaySpeedIndicator.map(currentImage,
 			&uboOverlaySpeedIndicator,
 			sizeof(uboOverlaySpeedIndicator), 0);
@@ -885,33 +911,36 @@ protected:
 					nscY <= yD && // since y down
 					nscY >= yU
 				) {
-					Splash = (int) i/4;
+					clickAction = (int) i/4;
 					// RebuildPipeline();
 					break;
 				}
 			}
 
+			std::cerr << "Clicked" << clickAction << std::endl;
 		}
 
-		if(Splash < 9) {
+		if(clickAction < HIDE_INFO) {
 			for(int i = 0; i < celestialBodiesInfo.size(); i++) {
 				CelestialBodyInfoVulkanData cbI = celestialBodiesInfo[i];
 				(*cbI.ubo).visible = 0;
-				if(i == Splash)
+				if(i == clickAction)
 					(*cbI.ubo).visible = 1;
 				(*cbI.DS).map(currentImage, cbI.ubo, sizeof((*cbI.ubo)), 0);
 			}
 		}
-		else if(Splash == 9) { //close all			
+		else if(clickAction == HIDE_INFO) { //close all			
 			for(int i = 0; i < celestialBodiesInfo.size(); i++) {
 				CelestialBodyInfoVulkanData cbI = celestialBodiesInfo[i];
 				(*cbI.ubo).visible = 0;
 				(*cbI.DS).map(currentImage, cbI.ubo, sizeof((*cbI.ubo)), 0);
 			}
 		}
-		else if(Splash == 10) isMoving = 1; //move
-		else if(Splash == 11) isMoving = 0; //stop
-		else if(Splash == 12 || Splash == 13) {
+		else if(clickAction == START_MOVING) isMoving = 1; //move
+		else if(clickAction == STOP_MOVING) isMoving = 0; //stop
+		else if(clickAction == SHOW_ORBITS) orbitsVisibility = 1;
+		else if(clickAction == HIDE_ORBITS) orbitsVisibility = 0;
+		else if(clickAction == SPEED_TRACKBAR_L || clickAction == SPEED_TRACKBAR_R) {
 			// changing the speed
 			double mouseX, mouseY;
 			glfwGetCursorPos(window, &mouseX, &mouseY);
@@ -922,18 +951,8 @@ protected:
 			float nscX = mouseX*2 / (screenWidth-1) - 1;
 			// float nscY = mouseY*2 / (screenHeight-1) - 1;
 
-			float xL = MKey.vertices[48].pos[0];
-			float xR = MKey.vertices[53].pos[0];
-
-			std::vector<float> velocities = {
-				0.001, 0.002, 0.005,
-				0.01, 0.02, 0.05,
-				0.1, 0.2, 0.5,
-				1, 2, 5,
-				10, 20, 50,
-				100, 200, 500,
-				1000
-			};
+			float xL = MKey.vertices[SPEED_TRACKBAR_L*4].pos[0];
+			float xR = MKey.vertices[SPEED_TRACKBAR_R*4+1].pos[0];
 
 			int numV = velocities.size();
 			float tick = (xR-xL)/numV;
@@ -952,7 +971,7 @@ protected:
 					break;
 				}
 			}
-			Splash = 9;
+			clickAction = HIDE_INFO;
 		}
 
 		uboKey.visible = 1;
@@ -1016,7 +1035,7 @@ protected:
 		return { View, Prj };
 	}
 
-	void createOverlayLayer(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx);
+	void createMouseKeyOverlayLayer(std::vector<VertexOverlay>& vDef, std::vector<uint32_t>& vIdx);
 
 	void createPlanetMesh(float radius, std::vector<VertexMesh>& vDef, std::vector<uint32_t>& vIdx);
 
