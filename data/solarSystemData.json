@@ -19,7 +19,7 @@
         "distance_from_sun": 12.0,
         "revolution_period": 0.615,
         "ecliptic_inclination": 3.39,
-        "rotation_period": -243.02,
+        "rotation_period": 243.02,
         "axial_tilt": 177.30,
         "radius": 0.95
     },
