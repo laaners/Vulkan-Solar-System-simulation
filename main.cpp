@@ -774,16 +774,12 @@ protected:
 				float revSpeed = 1.0f / (float) solarSystemData[cb.name]["revolution_period"];
 				revSpeed *= speedMultiplier;
 				(*cb.rev) += revSpeed * deltaT;
-				while(*cb.rev > 2*M_PI) *cb.rev -= 2*M_PI;
-				while(*cb.rev < 0) *cb.rev += 2*M_PI;
 
 				// rotation period in days
 				float rotSpeed = 1.0f / (float) solarSystemData[cb.name]["rotation_period"];
 				rotSpeed *= 365;
 				rotSpeed *= speedMultiplier;
 				(*cb.rot) += rotSpeed * deltaT;
-				while(*cb.rot > 2*M_PI) *cb.rot -= 2*M_PI;
-				while(*cb.rot < 0) *cb.rot += 2*M_PI;
 			}
 		}
 
