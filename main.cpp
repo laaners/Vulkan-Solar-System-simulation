@@ -206,7 +206,7 @@ protected:
 	};
 
 	// Camera Parameters
-	const float FOVy = glm::radians(45.0f);
+	const float FOVy = glm::radians(60.0f);
 	const float nearPlane = 0.1f;
 	const float farPlane = 400.0f;
 	const float rotSpeed = glm::radians(90.0f);
@@ -223,8 +223,8 @@ protected:
 	// Here you set the main application parameters
 	void setWindowParameters() {
 		// window size, titile and initial background
-		windowWidth = 800;
-		windowHeight = 600;
+		windowWidth = 1000;
+		windowHeight = 750;
 		windowTitle = "Solar System";
 		windowResizable = GLFW_TRUE;
 		initialBackgroundColor = { 0.0f, 0.005f, 0.01f, 1.0f };
