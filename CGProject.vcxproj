@@ -22,6 +22,14 @@
     <ClCompile Include="..\..\..\Università\Polimi\Anno 2\Semestre 2\Computer Graphics\POLIMI_CG_PROJECT\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="headers\json.hpp" />
+    <ClInclude Include="headers\plusaes.hpp" />
+    <ClInclude Include="headers\sdefl.h" />
+    <ClInclude Include="headers\sinfl.h" />
+    <ClInclude Include="headers\stb_image.h" />
+    <ClInclude Include="headers\stb_image_write.h" />
+    <ClInclude Include="headers\tiny_gltf.h" />
+    <ClInclude Include="headers\tiny_obj_loader.h" />
     <ClInclude Include="meshCreate.hpp" />
     <ClInclude Include="Starter.hpp" />
   </ItemGroup>

@@ -26,5 +26,29 @@
     <ClInclude Include="Starter.hpp">
       <Filter>File di origine</Filter>
     </ClInclude>
+    <ClInclude Include="headers\json.hpp">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\plusaes.hpp">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\sdefl.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\sinfl.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\stb_image.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\stb_image_write.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\tiny_gltf.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\tiny_obj_loader.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -37,10 +37,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <plusaes.hpp>
+#include "headers/plusaes.hpp"
 
 #define SINFL_IMPLEMENTATION
-#include <sinfl.h>
+#include "headers/sinfl.h"
 
 
 
