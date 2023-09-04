@@ -104,7 +104,7 @@ protected:
 	// Current aspect ratio (used by the callback that resized the window
 	float Ar;
 
-	DescriptorSetLayout DSLGubo, DSLPlanet, DSLSun, DSLSkydome, DSLOverlay;
+	DescriptorSetLayout DSLPlanet, DSLSun, DSLSkydome, DSLOverlay;
 	DescriptorSetLayout DSLOrbits;
 	DescriptorSetLayout DSLOverlaySpeedIndicator;
 
@@ -130,7 +130,6 @@ protected:
 	Model<VertexOrbit> MOrbits;
 	Model<VertexOverlaySpeedIndicator> MOverlaySpeedIndicator;
 
-	DescriptorSet DSGubo;
 	DescriptorSet DSSun;
 	DescriptorSet DSSkydome;
 	DescriptorSet DSMercury, DSVenus, DSEarth, DSMars, DSJupiter,
@@ -232,9 +231,9 @@ protected:
 		// Descriptor pool sizes
 
 		/* Update the requirements forthe size of the pool */
-		uniformBlocksInPool = 36+1+1;
-		texturesInPool = 23;
-		setsInPool = 36+1+1;
+		uniformBlocksInPool = 36;
+		texturesInPool = 23; // Sun loaded twice for emission texture
+		setsInPool = 24;
 
 		Ar = (float)windowWidth / (float)windowHeight;
 	}
@@ -320,10 +319,6 @@ protected:
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
 		});
 
-		DSLGubo.init(this, {
-			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS}
-		});
-
 		// Vertex descriptors--------------------------------------------------
 		VMesh.init(this, {
 			// this array contains the bindings
@@ -391,16 +386,16 @@ protected:
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
 
-		PPlanet.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/PlanetFrag.spv", { &DSLGubo, &DSLPlanet });
+		PPlanet.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/PlanetFrag.spv", { &DSLPlanet });
 		// the following line says if the created mesh model will be visible from the inside or not
 		PPlanet.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 			VK_CULL_MODE_NONE, false);
 
-		PSun.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SunFrag.spv", { &DSLGubo, &DSLSun });
+		PSun.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SunFrag.spv", { &DSLSun });
 		// PSun.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 		// 	VK_CULL_MODE_NONE, false);
 
-		PSkydome.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SkydomeFrag.spv", { &DSLGubo, &DSLSkydome});
+		PSkydome.init(this, &VMesh, "shaders/MeshVert.spv", "shaders/SkydomeFrag.spv", { &DSLSkydome});
 		PSkydome.setAdvancedFeatures(VK_COMPARE_OP_LESS, VK_POLYGON_MODE_FILL,
 			VK_CULL_MODE_NONE, false);
 
@@ -556,11 +551,6 @@ protected:
 		DSOverlaySpeedIndicator.init(this, &DSLOverlaySpeedIndicator, {
 			{0, UNIFORM, sizeof(OverlaySpeedIndicatorUniformBlock), nullptr}
 		});
-
-
-		DSGubo.init(this, &DSLGubo, {
-			{0, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-		});
 	}
 
 	// Here you destroy your pipelines and Descriptor Sets!
@@ -585,7 +575,6 @@ protected:
 		DSKey.cleanup();
 		DSOverlaySpeedIndicator.cleanup();
 		DSOrbits.cleanup();
-		DSGubo.cleanup();
 		DSSkydome.cleanup();
 	}
 
@@ -620,7 +609,6 @@ protected:
 
 		// Cleanup descriptor set layouts--------------------------------------------------
 		DSLPlanet.cleanup();
-		DSLGubo.cleanup();
 		DSLSun.cleanup();
 		DSLSkydome.cleanup();
 		DSLOverlay.cleanup();
@@ -641,9 +629,6 @@ protected:
 	// with their buffers and textures
 
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
-		// sets global uniforms (see below fro parameters explanation)
-		DSGubo.bind(commandBuffer, PPlanet, 0, currentImage);
-
 		// binds the pipeline
 		//--------------------------------------------------
 		PPlanet.bind(commandBuffer);
@@ -651,19 +636,19 @@ protected:
 		for(CelestialBodyVulkanData cb : celestialBodies) {
 			if (cb.name.compare("Sun") != 0) {
 				(*cb.model).bind(commandBuffer);
-				(*cb.DS).bind(commandBuffer, PPlanet, 1, currentImage);
+				(*cb.DS).bind(commandBuffer, PPlanet, 0, currentImage);
 				vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>((*cb.model).indices.size()), 1, 0, 0, 0);
 			}
 		}
 
 		MSaturnRing.bind(commandBuffer);
-		DSSaturnRing.bind(commandBuffer, PPlanet, 1, currentImage);
+		DSSaturnRing.bind(commandBuffer, PPlanet, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MSaturnRing.indices.size()), 1, 0, 0, 0);
 
 		MAsteroidsBelt.bind(commandBuffer);
-		DSAsteroidsBelt.bind(commandBuffer, PPlanet, 1, currentImage);
+		DSAsteroidsBelt.bind(commandBuffer, PPlanet, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MAsteroidsBelt.indices.size()), 1, 0, 0, 0);
 
@@ -671,14 +656,14 @@ protected:
 		PSun.bind(commandBuffer);
 		CelestialBodyVulkanData cb = celestialBodies[0];
 		(*cb.model).bind(commandBuffer);
-		(*cb.DS).bind(commandBuffer, PSun, 1, currentImage);
+		(*cb.DS).bind(commandBuffer, PSun, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>((*cb.model).indices.size()), 1, 0, 0, 0);
 
 		//--------------------------------------------------
 		PSkydome.bind(commandBuffer);
 		MSkydome.bind(commandBuffer);
-		DSSkydome.bind(commandBuffer, PSkydome, 1, currentImage);
+		DSSkydome.bind(commandBuffer, PSkydome, 0, currentImage);
 		vkCmdDrawIndexed(commandBuffer,
 			static_cast<uint32_t>(MSkydome.indices.size()), 1, 0, 0, 0);
 
@@ -742,7 +727,6 @@ protected:
 		pgubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		pgubo.AmbLightColor = glm::vec3(0.1f);
 		pgubo.eyePos = camPos;
-		DSGubo.map(currentImage, &pgubo, sizeof(pgubo), 0);
 
 		// the .map() method of a DataSet object, requires the current image of the swap chain as first parameter
 		// the second parameter is the pointer to the C++ data structure to transfer to the GPU

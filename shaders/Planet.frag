@@ -7,9 +7,9 @@ layout(location = 2) in vec2 fragUV;
 
 layout(location = 0) out vec4 outColor;
 
-layout(set = 1, binding = 1) uniform sampler2D tex;
+layout(set = 0, binding = 1) uniform sampler2D tex;
 
-layout(set = 1, binding = 2) uniform GlobalUniformBufferObject {
+layout(set = 0, binding = 2) uniform GlobalUniformBufferObject {
 	vec3 lightPos;	// position of the point light
 	vec4 lightColor;// color of the point light
 	vec3 AmbLightColor;	// ambient light

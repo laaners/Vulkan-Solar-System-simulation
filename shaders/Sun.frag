@@ -7,16 +7,16 @@ layout(location = 2) in vec2 fragUV;
 
 layout(location = 0) out vec4 outColor;
 
-layout(set = 1, binding = 1) uniform sampler2D tex;
+layout(set = 0, binding = 1) uniform sampler2D tex;
 
-layout(set = 1, binding = 2) uniform GlobalUniformBufferObject {
+layout(set = 0, binding = 2) uniform GlobalUniformBufferObject {
 	vec3 lightPos;	// position of the point light
 	vec4 lightColor;// color of the point light
 	vec3 AmbLightColor;	// ambient light
 	vec3 eyePos;	// position of the viewer
 } gubo;
 
-layout(set = 1, binding = 3) uniform sampler2D texEmit;
+layout(set = 0, binding = 3) uniform sampler2D texEmit;
 
 const float beta = 2.0f;	// decay exponent of the point light
 const float g = 20;		// target distance of the point light
