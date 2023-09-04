@@ -808,13 +808,6 @@ protected:
 				World = glm::rotate(World, (*cb.rot), glm::vec3(0, 1, 0)); // planets rotation
 			}
 
-			// if(cb.name.compare("Earth") == 0) {
-			// 	float rotSpeed = 1.0f / (float) solarSystemData["Earth"]["rotation_period"];
-			// 	rotSpeed *= 365;
-			// 	std::cerr << "Speed: " << rotSpeed << ", Rot: ";
-			// 	std::cerr << *cb.rot << std::endl;
-			// }
-
 			(*cb.ubo).amb = 1.0f;
 			(*cb.ubo).gamma = 180.0f;
 			(*cb.ubo).sColor = glm::vec3(1.0f);
@@ -838,9 +831,6 @@ protected:
 
 		// Asteroid belt--------------------------------------------------
 		MeshUniformBlock ubo{};
-		float radius = (float) solarSystemData["Jupiter"]["distance_from_sun"];
-		radius += (float) solarSystemData["Mars"]["distance_from_sun"];
-		radius /= 2.0f;
 
 		World = glm::mat4(1);
 		// asteroid rotation = slightly faster than jupiter
@@ -869,6 +859,10 @@ protected:
 		DSOverlaySpeedIndicator.map(currentImage,
 			&uboOverlaySpeedIndicator,
 			sizeof(uboOverlaySpeedIndicator), 0);
+
+		// Key splash
+		uboKey.visible = 1;
+		DSKey.map(currentImage, &uboKey, sizeof(uboKey), 0);
 
 		// Mouse events--------------------------------------------------
 		gameLogic(currentImage, fire, View, Prj, deltaT);
@@ -905,8 +899,6 @@ protected:
 					break;
 				}
 			}
-
-			std::cerr << "Clicked" << clickAction << std::endl;
 		}
 
 		if(clickAction < HIDE_INFO) {
@@ -962,9 +954,6 @@ protected:
 			}
 			clickAction = HIDE_INFO;
 		}
-
-		uboKey.visible = 1;
-		DSKey.map(currentImage, &uboKey, sizeof(uboKey), 0);
 	}
 
 	std::vector<glm::mat4> updateCamPos(float deltaT, glm::vec3 m, glm::vec3 r) {
