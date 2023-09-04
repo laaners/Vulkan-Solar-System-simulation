@@ -1797,7 +1797,7 @@ std::cout << "Starting createInstance()\n"  << std::flush;
 		}
 	}
 		
-	void getSixAxis(float &deltaT, glm::vec3 &m, glm::vec3 &r, bool &fire) {
+	void getSixAxis(float &deltaT, glm::vec3 &m, glm::vec3 &r, bool &fire, std::vector<glm::vec2> buttonsBounds) {
 		static auto startTime = std::chrono::high_resolution_clock::now();
 		static float lastTime = 0.0f;
 		
@@ -1817,8 +1817,33 @@ std::cout << "Starting createInstance()\n"  << std::flush;
 		const float MOUSE_RES = 10.0f;				
 		glfwSetInputMode(window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
 		if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-			r.y = -m_dx / MOUSE_RES;
-			r.x = -m_dy / MOUSE_RES;
+			int screenWidth, screenHeight;
+			glfwGetWindowSize(window, &screenWidth, &screenHeight);
+			float nscX = xpos*2 / (screenWidth-1) - 1;
+			float nscY = ypos*2 / (screenHeight-1) - 1;
+
+			int isOnButton = 0;
+			for(int i = 0; i < buttonsBounds.size(); i += 4) {
+				// check if the normalized screen coordinate inside a button
+				float xL = buttonsBounds[i+0][0]; // x of A
+				float xR = buttonsBounds[i+1][0]; // x of B
+				float yU = buttonsBounds[i+0][1]; // y of A
+				float yD = buttonsBounds[i+2][1]; // y of C
+
+				if(
+					nscX >= xL &&
+					nscX <= xR &&
+					nscY <= yD && // since y down
+					nscY >= yU
+				) {
+					isOnButton = 1;
+					break;
+				}
+			}
+			if(!isOnButton) {
+				r.y = -m_dx / MOUSE_RES;
+				r.x = -m_dy / MOUSE_RES;
+			}
 		}
 
 		if(glfwGetKey(window, GLFW_KEY_LEFT)) {
