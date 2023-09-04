@@ -32,12 +32,12 @@ struct OverlaySpeedIndicatorUniformBlock {
 	alignas(4) float x;
 };
 
-struct GlobalUniformBlockDirect {
-	alignas(16) glm::vec3 DlightDir;
-	alignas(16) glm::vec3 DlightColor;
-	alignas(16) glm::vec3 AmbLightColor;
-	alignas(16) glm::vec3 eyePos;
-};
+// struct GlobalUniformBlockDirect {
+// 	alignas(16) glm::vec3 DlightDir;
+// 	alignas(16) glm::vec3 DlightColor;
+// 	alignas(16) glm::vec3 AmbLightColor;
+// 	alignas(16) glm::vec3 eyePos;
+// };
 
 struct GlobalUniformBlockPoint {
 	alignas(16) glm::vec3 lightPos;
@@ -130,12 +130,13 @@ protected:
 	Model<VertexOrbit> MOrbits;
 	Model<VertexOverlaySpeedIndicator> MOverlaySpeedIndicator;
 
-	DescriptorSet DSGubo, DSSun, DSSkydome,
-		DSMercury, DSVenus, DSEarth, DSMars, DSJupiter,
-		DSSaturn, DSSaturnRing, DSUranus, DSNeptune;
-	DescriptorSet DSKey;
-	DescriptorSet DSSunI, DSMercuryI, DSVenusI, DSEarthI, DSMarsI, DSJupiterI, DSSaturnI, DSUranusI, DSNeptuneI;
-	DescriptorSet DSAsteroidsBelt;
+	DescriptorSet DSGubo;
+	DescriptorSet DSSun;
+	DescriptorSet DSSkydome;
+	DescriptorSet DSMercury, DSVenus, DSEarth, DSMars, DSJupiter,
+		DSSaturn, DSSaturnRing, DSUranus, DSNeptune, DSAsteroidsBelt;
+	DescriptorSet DSSunI, DSMercuryI, DSVenusI, DSEarthI, DSMarsI,
+		DSJupiterI, DSSaturnI, DSUranusI, DSNeptuneI, DSKey;
 	DescriptorSet DSOrbits;
 	DescriptorSet DSOverlaySpeedIndicator;
 
@@ -156,7 +157,6 @@ protected:
 	OverlayUniformBlock uboSunI, uboMercuryI, uboVenusI, uboEarthI, uboMarsI, uboJupiterI, uboSaturnI, uboUranusI, uboNeptuneI;
 	OverlaySpeedIndicatorUniformBlock uboOverlaySpeedIndicator = {0};
 	
-	GlobalUniformBlockDirect dgubo;
 	GlobalUniformBlockPoint pgubo;
 	OrbitsUniformBlock uboOrbits;
 	
@@ -216,7 +216,7 @@ protected:
 		
 	float camAlpha = 0.0f;
 	float camBeta = 0.0f;
-	float camRho = 0.0f;
+	// float camRho = 0.0f;
 
 	int cameraIsColliding = 0;
 
@@ -525,24 +525,24 @@ protected:
 			}
 		}
 
-		for(CelestialBodyInfoVulkanData cbI: celestialBodiesInfo) {
-			(*cbI.DS).init(this, &DSLOverlay, {
-				{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
-				{1, TEXTURE, 0, cbI.tex}
-			});
-		}
-
 		DSSaturnRing.init(this, &DSLPlanet, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TSaturnRing},
 			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
-			});
+		});
 
 		DSAsteroidsBelt.init(this, &DSLPlanet, {
 			{0, UNIFORM, sizeof(MeshUniformBlock), nullptr},
 			{1, TEXTURE, 0, &TAsteroid},
 			{2, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
 		});
+
+		for(CelestialBodyInfoVulkanData cbI: celestialBodiesInfo) {
+			(*cbI.DS).init(this, &DSLOverlay, {
+				{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
+				{1, TEXTURE, 0, cbI.tex}
+			});
+		}
 
 		DSKey.init(this, &DSLOverlay, {
 			{0, UNIFORM, sizeof(OverlayUniformBlock), nullptr},
@@ -559,7 +559,7 @@ protected:
 
 
 		DSGubo.init(this, &DSLGubo, {
-			{0, UNIFORM, sizeof(GlobalUniformBlockDirect), nullptr}
+			{0, UNIFORM, sizeof(GlobalUniformBlockPoint), nullptr}
 		});
 	}
 
@@ -742,15 +742,8 @@ protected:
 		pgubo.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		pgubo.AmbLightColor = glm::vec3(0.1f);
 		pgubo.eyePos = camPos;
+		DSGubo.map(currentImage, &pgubo, sizeof(pgubo), 0);
 
-		// Direct light--------------------------------------------------
-		dgubo.DlightDir = glm::normalize(glm::vec3(1, 2, 3));
-		dgubo.DlightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-		dgubo.AmbLightColor = glm::vec3(0.1f);
-		dgubo.eyePos = camPos;
-
-		// Writes value to the GPU
-		DSGubo.map(currentImage, &dgubo, sizeof(dgubo), 0);
 		// the .map() method of a DataSet object, requires the current image of the swap chain as first parameter
 		// the second parameter is the pointer to the C++ data structure to transfer to the GPU
 		// the third parameter is its size
