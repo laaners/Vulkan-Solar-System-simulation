@@ -1012,7 +1012,6 @@ protected:
 
 #include "planetCreate.hpp"
 
-// This is the main: probably you do not need to touch this!
 int main() {
 	SolarSystem app;
 
